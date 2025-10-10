@@ -1,5 +1,4 @@
 import express from 'express';
-import { User, Client, Worker } from '../types';
 
 const router = express.Router();
 
@@ -151,7 +150,7 @@ router.get('/', (req, res) => {
   // Mock implementation
   res.json({
     data: [],
-    total: 0
+    total: 0,
   });
 });
 

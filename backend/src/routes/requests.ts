@@ -1,5 +1,4 @@
 import express from 'express';
-import { ServiceRequest } from '../types';
 
 const router = express.Router();
 
@@ -153,7 +152,7 @@ router.get('/', (req, res) => {
   // Mock implementation
   res.json({
     data: [],
-    total: 0
+    total: 0,
   });
 });
 
@@ -226,7 +225,7 @@ router.get('/stats/overview', (req, res) => {
     totalRequests: 0,
     openRequests: 0,
     urgentRequests: 0,
-    averageResponseTime: 0
+    averageResponseTime: 0,
   });
 });
 

@@ -1,5 +1,4 @@
 import express from 'express';
-import { User } from '../types';
 
 const router = express.Router();
 

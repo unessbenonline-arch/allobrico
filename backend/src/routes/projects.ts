@@ -1,5 +1,4 @@
 import express from 'express';
-import { Project } from '../types';
 
 const router = express.Router();
 
@@ -148,7 +147,7 @@ router.get('/', (req, res) => {
   // Mock implementation
   res.json({
     data: [],
-    total: 0
+    total: 0,
   });
 });
 
@@ -200,7 +199,7 @@ router.get('/stats/overview', (req, res) => {
     totalProjects: 0,
     activeProjects: 0,
     completedProjects: 0,
-    averageBudget: 0
+    averageBudget: 0,
   });
 });
 

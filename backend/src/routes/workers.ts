@@ -1,5 +1,4 @@
 import express from 'express';
-import { Worker } from '../types';
 
 const router = express.Router();
 
@@ -164,7 +163,7 @@ router.get('/', (req, res) => {
   // Mock implementation - would connect to database in real app
   res.json({
     data: [],
-    total: 0
+    total: 0,
   });
 });
 
@@ -265,7 +264,7 @@ router.get('/stats/overview', (req, res) => {
     totalWorkers: 0,
     activeWorkers: 0,
     averageRating: 0,
-    totalReviews: 0
+    totalReviews: 0,
   });
 });
 
