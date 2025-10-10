@@ -143,11 +143,98 @@ const router = express.Router();
  *                 total:
  *                   type: integer
  */
+
+// Mock data for projects
+const mockProjects = [
+  {
+    id: 'proj-1',
+    title: 'Rénovation salle de bain complète',
+    description: 'Rénovation complète de la salle de bain : dépose du carrelage ancien, installation WC, douche et lavabo neufs',
+    category: 'Plomberie',
+    clientId: 'client-1',
+    workerId: 'worker-1',
+    status: 'in_progress',
+    budget: {
+      min: 2500,
+      max: 3500,
+      currency: 'EUR'
+    },
+    location: {
+      address: '15 Rue de la Paix, Paris 75001',
+      coordinates: { lat: 48.8566, lng: 2.3522 }
+    },
+    createdAt: '2024-01-10T09:00:00Z',
+    updatedAt: '2024-01-15T14:30:00Z',
+    startDate: '2024-01-16T08:00:00Z',
+    endDate: '2024-01-20T17:00:00Z',
+    progress: 65,
+    milestones: [
+      { id: 'mil-1', title: 'Dépose anciens équipements', completed: true, dueDate: '2024-01-16T12:00:00Z' },
+      { id: 'mil-2', title: 'Installation plomberie', completed: true, dueDate: '2024-01-17T16:00:00Z' },
+      { id: 'mil-3', title: 'Pose carrelage', completed: false, dueDate: '2024-01-18T16:00:00Z' },
+      { id: 'mil-4', title: 'Installation équipements', completed: false, dueDate: '2024-01-19T16:00:00Z' }
+    ]
+  },
+  {
+    id: 'proj-2',
+    title: 'Installation électrique cuisine',
+    description: 'Installation complète du réseau électrique pour une nouvelle cuisine américaine',
+    category: 'Électricité',
+    clientId: 'client-2',
+    workerId: 'worker-2',
+    status: 'completed',
+    budget: {
+      min: 1200,
+      max: 1800,
+      currency: 'EUR'
+    },
+    location: {
+      address: '25 Avenue des Champs-Élysées, Paris 75008',
+      coordinates: { lat: 48.8698, lng: 2.3076 }
+    },
+    createdAt: '2024-01-05T10:00:00Z',
+    updatedAt: '2024-01-12T16:00:00Z',
+    startDate: '2024-01-08T08:00:00Z',
+    endDate: '2024-01-12T17:00:00Z',
+    progress: 100,
+    milestones: [
+      { id: 'mil-5', title: 'Étude et préparation', completed: true, dueDate: '2024-01-08T12:00:00Z' },
+      { id: 'mil-6', title: 'Installation câblage', completed: true, dueDate: '2024-01-10T16:00:00Z' },
+      { id: 'mil-7', title: 'Pose prises et interrupteurs', completed: true, dueDate: '2024-01-11T16:00:00Z' },
+      { id: 'mil-8', title: 'Contrôles et finitions', completed: true, dueDate: '2024-01-12T16:00:00Z' }
+    ]
+  },
+  {
+    id: 'proj-3',
+    title: 'Peinture appartement 3 pièces',
+    description: 'Repeinture complète d\'un appartement de 3 pièces : salon, chambres et couloir',
+    category: 'Peinture',
+    clientId: 'client-3',
+    workerId: 'worker-3',
+    status: 'pending',
+    budget: {
+      min: 800,
+      max: 1200,
+      currency: 'EUR'
+    },
+    location: {
+      address: '8 Boulevard Saint-Michel, Paris 75005',
+      coordinates: { lat: 48.8462, lng: 2.3444 }
+    },
+    createdAt: '2024-01-14T11:00:00Z',
+    updatedAt: '2024-01-14T11:00:00Z',
+    startDate: null,
+    endDate: null,
+    progress: 0,
+    milestones: []
+  }
+];
+
 router.get('/', (req, res) => {
   // Mock implementation
   res.json({
-    data: [],
-    total: 0,
+    data: mockProjects,
+    total: mockProjects.length,
   });
 });
 

@@ -161,9 +161,116 @@ const router = express.Router();
  */
 router.get('/', (req, res) => {
   // Mock implementation - would connect to database in real app
+  const mockWorkers = [
+    {
+      id: 1,
+      name: 'Pierre Martin',
+      specialty: 'Plomberie & Chauffage',
+      rating: 4.8,
+      jobs: 127,
+      type: 'individual',
+      urgent: false,
+      location: 'Paris 15ème',
+      description: 'Artisan expérimenté en plomberie avec plus de 10 ans d\'expérience',
+      experience: '10+ ans',
+      certifications: ['Qualification professionnelle', 'Assurance décennale'],
+      portfolio: [
+        { id: 1, title: 'Installation salle de bain', description: 'Rénovation complète' },
+        { id: 2, title: 'Dépannage urgence', description: 'Intervention rapide' },
+      ],
+      reviews: [
+        { id: 1, client: 'Marie D.', rating: 5, comment: 'Excellent travail, très professionnel', date: '2024-01-15' },
+        { id: 2, client: 'Jean P.', rating: 5, comment: 'Intervention rapide et efficace', date: '2024-01-10' },
+      ],
+      availability: 'Disponible cette semaine',
+      responseTime: 'Répond en moyenne en 1h',
+      completedProjects: 127,
+      specialties: ['Plomberie', 'Chauffage', 'Dépannages urgents'],
+      status: 'active',
+    },
+    {
+      id: 2,
+      name: 'Sophie Leroy',
+      specialty: 'Électricité & Domotique',
+      rating: 4.9,
+      jobs: 89,
+      type: 'individual',
+      urgent: true,
+      location: 'Boulogne-Billancourt',
+      description: 'Électricienne qualifiée spécialisée en domotique et rénovation électrique',
+      experience: '8+ ans',
+      certifications: ['Qualification électrique', 'Domotique certifiée'],
+      portfolio: [
+        { id: 1, title: 'Rénovation électrique', description: 'Mise aux normes complète' },
+        { id: 2, title: 'Installation domotique', description: 'Maison connectée' },
+      ],
+      reviews: [
+        { id: 1, client: 'Paul L.', rating: 5, comment: 'Travail impeccable, très compétente', date: '2024-01-12' },
+        { id: 2, client: 'Anna M.', rating: 4, comment: 'Bon travail, délais respectés', date: '2024-01-08' },
+      ],
+      availability: 'Disponible en urgence',
+      responseTime: 'Répond en moyenne en 30min',
+      completedProjects: 89,
+      specialties: ['Électricité', 'Domotique', 'Mise aux normes'],
+      status: 'active',
+    },
+    {
+      id: 3,
+      name: 'TechPro Services',
+      specialty: 'Peinture & Décoration',
+      rating: 4.7,
+      jobs: 203,
+      type: 'company',
+      urgent: false,
+      location: 'Neuilly-sur-Seine',
+      description: 'Entreprise spécialisée en peinture intérieure et extérieure, décoration d\'intérieur',
+      experience: '15+ ans',
+      certifications: ['Certification qualité', 'Éco-peinture'],
+      portfolio: [
+        { id: 1, title: 'Rénovation appartement', description: 'Peinture complète 5 pièces' },
+        { id: 2, title: 'Décoration commerciale', description: 'Local commercial' },
+      ],
+      reviews: [
+        { id: 1, client: 'Isabelle R.', rating: 5, comment: 'Équipe professionnelle, résultat parfait', date: '2024-01-14' },
+        { id: 2, client: 'Michel B.', rating: 4, comment: 'Bon travail, prix correct', date: '2024-01-09' },
+      ],
+      availability: 'Disponible sous 48h',
+      responseTime: 'Répond en moyenne en 2h',
+      completedProjects: 203,
+      specialties: ['Peinture intérieure', 'Peinture extérieure', 'Décoration'],
+      status: 'active',
+    },
+    {
+      id: 4,
+      name: 'Jean Dupont',
+      specialty: 'Menuiserie & Ebénisterie',
+      rating: 4.6,
+      jobs: 156,
+      type: 'individual',
+      urgent: false,
+      location: 'Versailles',
+      description: 'Menuisier ébéniste spécialisé dans les travaux sur mesure et la restauration',
+      experience: '12+ ans',
+      certifications: ['Brevet de maîtrise', 'Restauration du patrimoine'],
+      portfolio: [
+        { id: 1, title: 'Cuisine sur mesure', description: 'Création complète' },
+        { id: 2, title: 'Restauration meubles', description: 'Antiquités' },
+      ],
+      reviews: [
+        { id: 1, client: 'Claire S.', rating: 5, comment: 'Travail d\'exception, très créatif', date: '2024-01-13' },
+        { id: 2, client: 'Robert D.', rating: 4, comment: 'Qualité excellente, délais respectés', date: '2024-01-07' },
+      ],
+      availability: 'Disponible sous 72h',
+      responseTime: 'Répond en moyenne en 3h',
+      completedProjects: 156,
+      specialties: ['Menuiserie', 'Ébénisterie', 'Restauration'],
+      status: 'active',
+    },
+  ];
+
   res.json({
-    data: [],
-    total: 0,
+    data: mockWorkers,
+    total: mockWorkers.length,
   });
 });
 

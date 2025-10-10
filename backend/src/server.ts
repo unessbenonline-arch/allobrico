@@ -12,6 +12,7 @@ import categoryRoutes from './routes/categories';
 import projectRoutes from './routes/projects';
 import requestRoutes from './routes/requests';
 import workerRoutes from './routes/workers';
+import adminRoutes from './routes/admin';
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/workers', workerRoutes);
+app.use('/api/admin', adminRoutes);
 
 // Basic route
 app.get('/', (req, res) => {
@@ -80,7 +82,8 @@ app.get('/', (req, res) => {
       categories: '/api/categories',
       projects: '/api/projects',
       requests: '/api/requests',
-      workers: '/api/workers'
+      workers: '/api/workers',
+      admin: '/api/admin'
     }
   });
 });

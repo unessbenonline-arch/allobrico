@@ -148,11 +148,82 @@ const router = express.Router();
  *                 total:
  *                   type: integer
  */
+
+// Mock data for requests
+const mockRequests = [
+  {
+    id: 'req-1',
+    title: 'Réparation fuite d\'eau sous évier',
+    description: 'Fuite importante sous l\'évier de la cuisine, besoin d\'intervention urgente',
+    service: 'Plomberie',
+    clientId: 'client-1',
+    status: 'open',
+    priority: 'urgent',
+    budget: {
+      min: 80,
+      max: 150,
+      currency: 'EUR'
+    },
+    location: {
+      address: '15 Rue de la Paix, Paris 75001',
+      coordinates: { lat: 48.8566, lng: 2.3522 }
+    },
+    createdAt: '2024-01-15T10:30:00Z',
+    updatedAt: '2024-01-15T10:30:00Z',
+    attachments: [],
+    preferredSchedule: 'Aujourd\'hui si possible'
+  },
+  {
+    id: 'req-2',
+    title: 'Installation climatisation chambre',
+    description: 'Installation d\'un climatiseur dans la chambre parentale',
+    service: 'Climatisation',
+    clientId: 'client-2',
+    status: 'assigned',
+    priority: 'normal',
+    budget: {
+      min: 300,
+      max: 500,
+      currency: 'EUR'
+    },
+    location: {
+      address: '25 Avenue des Champs-Élysées, Paris 75008',
+      coordinates: { lat: 48.8698, lng: 2.3076 }
+    },
+    createdAt: '2024-01-14T14:20:00Z',
+    updatedAt: '2024-01-14T16:45:00Z',
+    attachments: [],
+    preferredSchedule: 'Cette semaine'
+  },
+  {
+    id: 'req-3',
+    title: 'Peinture salon et couloir',
+    description: 'Repeindre le salon et le couloir en blanc cassé',
+    service: 'Peinture',
+    clientId: 'client-3',
+    status: 'in_progress',
+    priority: 'low',
+    budget: {
+      min: 200,
+      max: 350,
+      currency: 'EUR'
+    },
+    location: {
+      address: '8 Boulevard Saint-Michel, Paris 75005',
+      coordinates: { lat: 48.8462, lng: 2.3444 }
+    },
+    createdAt: '2024-01-13T09:15:00Z',
+    updatedAt: '2024-01-15T11:00:00Z',
+    attachments: [],
+    preferredSchedule: 'Dans les 2 semaines'
+  }
+];
+
 router.get('/', (req, res) => {
   // Mock implementation
   res.json({
-    data: [],
-    total: 0,
+    data: mockRequests,
+    total: mockRequests.length,
   });
 });
 
