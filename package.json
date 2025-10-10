@@ -1,0 +1,29 @@
+{
+  "name": "allobbrico-fullstack",
+  "version": "1.0.0",
+  "description": "Full-stack application for AlloObbrico platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run backend:dev\" \"npm run frontend:dev\"",
+    "backend:dev": "cd backend && PORT=5001 npm run dev",
+    "frontend:dev": "cd frontend && npm start",
+    "build": "npm run backend:build && npm run frontend:build",
+    "backend:build": "cd backend && npm run build",
+    "frontend:build": "cd frontend && npm run build",
+    "start": "concurrently \"npm run backend:start\" \"npm run frontend:start\"",
+    "backend:start": "cd backend && npm start",
+    "frontend:start": "cd frontend && npm start"
+  },
+  "keywords": [
+    "fullstack",
+    "react",
+    "node",
+    "express",
+    "typescript"
+  ],
+  "author": "Your Name",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
