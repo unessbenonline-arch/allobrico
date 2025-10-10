@@ -356,4 +356,45 @@ router.get('/category/:category', (req, res) => {
   res.json([]);
 });
 
+/**
+ * @swagger
+ * /api/requests/{id}/status:
+ *   patch:
+ *     summary: Update request status
+ *     tags: [Service Requests]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Request ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [open, assigned, in_progress, completed, cancelled]
+ *     responses:
+ *       200:
+ *         description: Request status updated successfully
+ *       404:
+ *         description: Request not found
+ */
+router.patch('/:id/status', (req, res) => {
+  // Mock implementation
+  res.json({
+    message: 'Request status updated successfully',
+    request: {
+      id: req.params.id,
+      status: req.body.status,
+      updatedAt: new Date().toISOString(),
+    }
+  });
+});
+
 export default router;

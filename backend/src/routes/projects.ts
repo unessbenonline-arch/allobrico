@@ -346,4 +346,287 @@ router.get('/category/:category', (req, res) => {
   res.json([]);
 });
 
+/**
+ * @swagger
+ * /api/projects/{id}/progress:
+ *   post:
+ *     summary: Add progress update to a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               description:
+ *                 type: string
+ *                 description: Progress update description
+ *               milestoneId:
+ *                 type: string
+ *                 description: Associated milestone ID (optional)
+ *               photos:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Progress photos
+ *     responses:
+ *       201:
+ *         description: Progress update added successfully
+ *       404:
+ *         description: Project not found
+ */
+router.post('/:id/progress', (req, res) => {
+  // Mock implementation - in real app, handle file uploads and save to database
+  res.status(201).json({
+    message: 'Progress update added successfully',
+    update: {
+      id: `update-${Date.now()}`,
+      projectId: req.params.id,
+      description: req.body.description,
+      milestoneId: req.body.milestoneId,
+      photos: [], // Would contain uploaded photo URLs
+      timestamp: new Date().toISOString(),
+    }
+  });
+});
+
+/**
+ * @swagger
+ * /api/projects/{id}/progress:
+ *   get:
+ *     summary: Get progress updates for a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: List of progress updates
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   projectId:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   photos:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                   timestamp:
+ *                     type: string
+ *                   milestoneId:
+ *                     type: string
+ */
+router.get('/:id/progress', (req, res) => {
+  // Mock implementation
+  res.json([
+    {
+      id: 'update-1',
+      projectId: req.params.id,
+      description: 'Début des travaux de plomberie - installation des nouvelles canalisations',
+      photos: ['/uploads/progress/photo1.jpg', '/uploads/progress/photo2.jpg'],
+      timestamp: '2024-01-16T10:00:00Z',
+      milestoneId: 'm2',
+    },
+    {
+      id: 'update-2',
+      projectId: req.params.id,
+      description: 'Pose du carrelage terminée - 75% du sol couvert',
+      photos: ['/uploads/progress/photo3.jpg'],
+      timestamp: '2024-01-17T15:30:00Z',
+    }
+  ]);
+});
+
+/**
+ * @swagger
+ * /api/projects/{id}/milestones/{milestoneId}/complete:
+ *   patch:
+ *     summary: Mark milestone as completed
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *       - in: path
+ *         name: milestoneId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Milestone ID
+ *     responses:
+ *       200:
+ *         description: Milestone marked as completed
+ *       404:
+ *         description: Project or milestone not found
+ */
+router.patch('/:id/milestones/:milestoneId/complete', (req, res) => {
+  // Mock implementation
+  res.json({
+    message: 'Milestone marked as completed',
+    milestone: {
+      id: req.params.milestoneId,
+      completed: true,
+      completedAt: new Date().toISOString(),
+    }
+  });
+});
+
+/**
+ * @swagger
+ * /api/workers/{workerId}/portfolio:
+ *   get:
+ *     summary: Get worker portfolio
+ *     tags: [Workers]
+ *     parameters:
+ *       - in: path
+ *         name: workerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Worker ID
+ *     responses:
+ *       200:
+ *         description: Worker portfolio
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   id:
+ *                     type: string
+ *                   title:
+ *                     type: string
+ *                   description:
+ *                     type: string
+ *                   category:
+ *                     type: string
+ *                   images:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                   beforeImages:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                   afterImages:
+ *                     type: array
+ *                     items:
+ *                       type: string
+ *                   completionDate:
+ *                     type: string
+ *                   clientRating:
+ *                     type: number
+ *                   clientReview:
+ *                     type: string
+ */
+router.get('/workers/:workerId/portfolio', (req, res) => {
+  // Mock implementation
+  res.json([
+    {
+      id: 'portfolio-1',
+      title: 'Rénovation cuisine moderne',
+      description: 'Transformation complète d\'une cuisine traditionnelle en espace moderne et fonctionnel',
+      category: 'Cuisine',
+      images: ['/uploads/portfolio/cuisine1.jpg', '/uploads/portfolio/cuisine2.jpg'],
+      beforeImages: ['/uploads/portfolio/cuisine_before1.jpg'],
+      afterImages: ['/uploads/portfolio/cuisine_after1.jpg', '/uploads/portfolio/cuisine_after2.jpg'],
+      completionDate: '2024-01-15',
+      clientRating: 5,
+      clientReview: 'Excellent travail, très professionnel et soigné.'
+    }
+  ]);
+});
+
+/**
+ * @swagger
+ * /api/workers/{workerId}/portfolio:
+ *   post:
+ *     summary: Add project to worker portfolio
+ *     tags: [Workers]
+ *     parameters:
+ *       - in: path
+ *         name: workerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Worker ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               category:
+ *                 type: string
+ *               completionDate:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               beforeImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *               afterImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Portfolio item added successfully
+ */
+router.post('/workers/:workerId/portfolio', (req, res) => {
+  // Mock implementation
+  res.status(201).json({
+    message: 'Portfolio item added successfully',
+    item: {
+      id: `portfolio-${Date.now()}`,
+      workerId: req.params.workerId,
+      title: req.body.title,
+      description: req.body.description,
+      category: req.body.category,
+      completionDate: req.body.completionDate,
+      images: [], // Would contain uploaded image URLs
+      beforeImages: [],
+      afterImages: [],
+      createdAt: new Date().toISOString(),
+    }
+  });
+});
+
 export default router;
