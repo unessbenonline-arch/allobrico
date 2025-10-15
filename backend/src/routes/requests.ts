@@ -1,4 +1,5 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
+import { query } from '../database';
 
 const router = express.Router();
 
@@ -219,12 +220,84 @@ const mockRequests = [
   }
 ];
 
-router.get('/', (req, res) => {
-  // Mock implementation
+router.get('/', async (req: Request, res: Response) => {
+  // Mock implementation - return mock data instead of database query
   res.json({
     data: mockRequests,
     total: mockRequests.length,
   });
+});
+
+/**
+ * @swagger
+ * /api/requests:
+ *   post:
+ *     summary: Create a new service request
+ *     tags: [Requests]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - description
+ *               - categoryId
+ *               - clientId
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               categoryId:
+ *                 type: string
+ *               clientId:
+ *                 type: string
+ *               budgetMin:
+ *                 type: number
+ *               budgetMax:
+ *                 type: number
+ *               location:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Request created successfully
+ *       400:
+ *         description: Invalid request data
+ */
+router.post('/', async (req: Request, res: Response) => {
+  try {
+    const { title, description, categoryId, clientId, priority, budget, location, preferredSchedule } = req.body;
+
+    // Mock implementation
+    const newRequest = {
+      id: `request_${Date.now()}`,
+      title,
+      description,
+      service: 'Mock Service',
+      clientId,
+      status: 'pending',
+      priority: priority || 'normal',
+      budget: budget || { min: 0, max: 1000, currency: 'EUR' },
+      location: location || { address: 'Mock Address', coordinates: { lat: 48.8566, lng: 2.3522 } },
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      attachments: [],
+      preferredSchedule
+    };
+
+    res.status(201).json({
+      success: true,
+      data: newRequest,
+    });
+  } catch (error) {
+    console.error('Error creating request:', error);
+    res.status(500).json({
+      error: 'Internal Server Error',
+      message: 'Failed to create request'
+    });
+  }
 });
 
 /**
@@ -250,7 +323,7 @@ router.get('/', (req, res) => {
  *       404:
  *         description: Request not found
  */
-router.get('/:id', (req, res) => {
+router.get('/:id', (req: Request, res: Response) => {
   // Mock implementation
   res.status(404).json({ error: 'Request not found' });
 });
@@ -271,7 +344,7 @@ router.get('/:id', (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/ServiceRequest'
  */
-router.get('/urgent/list', (req, res) => {
+router.get('/urgent/list', (req: Request, res: Response) => {
   // Mock implementation
   res.json([]);
 });
@@ -290,7 +363,7 @@ router.get('/urgent/list', (req, res) => {
  *             schema:
  *               $ref: '#/components/schemas/RequestStats'
  */
-router.get('/stats/overview', (req, res) => {
+router.get('/stats/overview', (req: Request, res: Response) => {
   // Mock implementation
   res.json({
     totalRequests: 0,
@@ -323,7 +396,7 @@ router.get('/stats/overview', (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/ServiceRequest'
  */
-router.get('/recent/list', (req, res) => {
+router.get('/recent/list', (req: Request, res: Response) => {
   // Mock implementation
   res.json([]);
 });
@@ -351,7 +424,7 @@ router.get('/recent/list', (req, res) => {
  *               items:
  *                 $ref: '#/components/schemas/ServiceRequest'
  */
-router.get('/category/:category', (req, res) => {
+router.get('/category/:category', (req: Request, res: Response) => {
   // Mock implementation
   res.json([]);
 });
@@ -385,7 +458,7 @@ router.get('/category/:category', (req, res) => {
  *       404:
  *         description: Request not found
  */
-router.patch('/:id/status', (req, res) => {
+router.patch('/:id/status', (req: Request, res: Response) => {
   // Mock implementation
   res.json({
     message: 'Request status updated successfully',
@@ -430,7 +503,7 @@ router.patch('/:id/status', (req, res) => {
  *       201:
  *         description: Offer submitted successfully
  */
-router.post('/:id/offers', (req, res) => {
+router.post('/:id/offers', (req: Request, res: Response) => {
   const { id } = req.params;
   const { workerId, price, description, timeline, availability } = req.body;
 
@@ -469,7 +542,7 @@ router.post('/:id/offers', (req, res) => {
  *       200:
  *         description: Offers retrieved successfully
  */
-router.get('/:id/offers', (req, res) => {
+router.get('/:id/offers', (req: Request, res: Response) => {
   const { id } = req.params;
 
   // Mock offers data
@@ -536,7 +609,7 @@ router.get('/:id/offers', (req, res) => {
  *       200:
  *         description: Offer status updated successfully
  */
-router.put('/:requestId/offers/:offerId/status', (req, res) => {
+router.put('/:requestId/offers/:offerId/status', (req: Request, res: Response) => {
   const { requestId, offerId } = req.params;
   const { status } = req.body;
 

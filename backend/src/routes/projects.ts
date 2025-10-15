@@ -231,10 +231,30 @@ const mockProjects = [
 ];
 
 router.get('/', (req, res) => {
-  // Mock implementation
+  const { workerId, status, category, limit = '20' } = req.query;
+  let projects = mockProjects;
+
+  // Filter by workerId if provided
+  if (workerId && workerId !== 'undefined') {
+    projects = projects.filter(project => project.workerId === workerId);
+  }
+
+  // Filter by status if provided
+  if (status) {
+    projects = projects.filter(project => project.status === status);
+  }
+
+  // Filter by category if provided
+  if (category) {
+    projects = projects.filter(project => project.category === category);
+  }
+
+  // Apply limit
+  const limitedProjects = projects.slice(0, parseInt(limit as string));
+
   res.json({
-    data: mockProjects,
-    total: mockProjects.length,
+    data: limitedProjects,
+    total: projects.length,
   });
 });
 

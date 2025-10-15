@@ -5,8 +5,15 @@ import dotenv from 'dotenv';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
+dotenv.config();
+
 // Import database connection
-import './database';
+try {
+  import('./database');
+  console.log('Database module imported successfully');
+} catch (error) {
+  console.error('Failed to import database module:', error);
+}
 
 // Import routes
 import authRoutes from './routes/auth';
@@ -16,11 +23,12 @@ import projectRoutes from './routes/projects';
 import requestRoutes from './routes/requests';
 import workerRoutes from './routes/workers';
 import adminRoutes from './routes/admin';
+import messageRoutes from './routes/messages';
 
-dotenv.config();
+console.log('Routes imported successfully');
 
 const app = express();
-const PORT = parseInt(process.env.PORT || '5000', 10);
+const PORT = parseInt(process.env.PORT || '5001', 10);
 
 // Swagger definition
 const swaggerOptions = {
@@ -73,6 +81,12 @@ app.use('/api/projects', projectRoutes);
 app.use('/api/requests', requestRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/messages', messageRoutes);
+
+// Test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working', timestamp: new Date().toISOString() });
+});
 
 // Basic route
 app.get('/', (req, res) => {

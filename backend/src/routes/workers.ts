@@ -431,4 +431,45 @@ router.get('/location/:city', (req, res) => {
   res.json([]);
 });
 
+/**
+ * @swagger
+ * /api/workers/{id}/requests:
+ *   get:
+ *     summary: Get requests assigned to a worker
+ *     tags: [Workers]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Worker ID
+ *     responses:
+ *       200:
+ *         description: List of requests assigned to the worker
+ */
+router.get('/:id/requests', (req, res) => {
+  // Mock implementation
+  res.json([
+    {
+      id: 'request-1',
+      title: 'Réparation fuite eau',
+      description: 'Fuite sous l\'évier de la cuisine',
+      status: 'in_progress',
+      priority: 'high',
+      category: 'Plomberie',
+      client: {
+        id: 'client-1',
+        name: 'Marie Dupont',
+        phone: '06 12 34 56 78',
+        address: '15 rue de la Paix, Paris 75001'
+      },
+      location: 'Paris 15ème',
+      budget: 150,
+      createdAt: '2024-01-10T10:00:00Z',
+      scheduledDate: '2024-01-12T14:00:00Z'
+    }
+  ]);
+});
+
 export default router;

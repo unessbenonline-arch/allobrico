@@ -1,22 +1,29 @@
 import { Pool, PoolClient } from 'pg';
-import dotenv from 'dotenv';
-
-dotenv.config();
 
 // Extend PoolClient to include our custom property
 interface ExtendedPoolClient extends PoolClient {
   lastQuery?: any[];
 }
 
+console.log('Creating database pool...');
+
 const pool = new Pool({
-  host: process.env.DB_HOST || 'localhost',
+  host: process.env.DB_HOST || 'database',
   port: parseInt(process.env.DB_PORT || '5432'),
   database: process.env.DB_NAME || 'allobbrico',
   user: process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
+  password: process.env.DB_PASSWORD || 'password',
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 2000,
+});
+
+console.log('Database pool created with config:', {
+  host: process.env.DB_HOST || 'database',
+  port: process.env.DB_PORT || '5432',
+  database: process.env.DB_NAME || 'allobbrico',
+  user: process.env.DB_USER || 'postgres',
+  hasPassword: !!(process.env.DB_PASSWORD || 'password'),
 });
 
 // Test the connection
@@ -26,7 +33,8 @@ pool.on('connect', () => {
 
 pool.on('error', (err) => {
   console.error('❌ Unexpected error on idle client', err);
-  process.exit(-1);
+  // Don't exit the process, just log the error
+  // process.exit(-1);
 });
 
 // Query helper function
