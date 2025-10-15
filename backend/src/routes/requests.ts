@@ -397,4 +397,159 @@ router.patch('/:id/status', (req, res) => {
   });
 });
 
+/**
+ * @swagger
+ * /api/requests/{id}/offers:
+ *   post:
+ *     summary: Submit an offer for a service request
+ *     tags: [Requests]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               workerId:
+ *                 type: string
+ *               price:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *               timeline:
+ *                 type: string
+ *               availability:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Offer submitted successfully
+ */
+router.post('/:id/offers', (req, res) => {
+  const { id } = req.params;
+  const { workerId, price, description, timeline, availability } = req.body;
+
+  // Mock offer creation
+  const offer = {
+    id: Date.now().toString(),
+    requestId: id,
+    workerId,
+    price,
+    description,
+    timeline,
+    availability,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  };
+
+  res.status(201).json({
+    message: 'Offer submitted successfully',
+    offer
+  });
+});
+
+/**
+ * @swagger
+ * /api/requests/{id}/offers:
+ *   get:
+ *     summary: Get all offers for a service request
+ *     tags: [Requests]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Offers retrieved successfully
+ */
+router.get('/:id/offers', (req, res) => {
+  const { id } = req.params;
+
+  // Mock offers data
+  const mockOffers = [
+    {
+      id: '1',
+      requestId: id,
+      workerId: 'worker1',
+      workerName: 'Jean Martin',
+      price: 450,
+      description: 'Je propose mes services pour cette réparation. J\'ai 10 ans d\'expérience en plomberie.',
+      timeline: '2-3 jours',
+      availability: 'Disponible dès lundi',
+      status: 'pending',
+      createdAt: '2024-03-16T10:00:00Z',
+    },
+    {
+      id: '2',
+      requestId: id,
+      workerId: 'worker2',
+      workerName: 'Pierre Dubois',
+      price: 520,
+      description: 'Artisan qualifié avec assurance décennale. Intervention rapide garantie.',
+      timeline: '1-2 jours',
+      availability: 'Disponible cette semaine',
+      status: 'pending',
+      createdAt: '2024-03-16T11:30:00Z',
+    }
+  ];
+
+  res.json({
+    offers: mockOffers
+  });
+});
+
+/**
+ * @swagger
+ * /api/requests/{requestId}/offers/{offerId}/status:
+ *   put:
+ *     summary: Update offer status (accept/reject)
+ *     tags: [Requests]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: offerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [accepted, rejected]
+ *     responses:
+ *       200:
+ *         description: Offer status updated successfully
+ */
+router.put('/:requestId/offers/:offerId/status', (req, res) => {
+  const { requestId, offerId } = req.params;
+  const { status } = req.body;
+
+  // Mock offer status update
+  res.json({
+    message: 'Offer status updated successfully',
+    offer: {
+      id: offerId,
+      requestId,
+      status,
+      updatedAt: new Date().toISOString(),
+    }
+  });
+});
+
 export default router;

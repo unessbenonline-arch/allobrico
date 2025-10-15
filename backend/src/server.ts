@@ -5,6 +5,9 @@ import dotenv from 'dotenv';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 
+// Import database connection
+import './database';
+
 // Import routes
 import authRoutes from './routes/auth';
 import userRoutes from './routes/users';
