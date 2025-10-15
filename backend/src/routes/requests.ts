@@ -221,11 +221,88 @@ const mockRequests = [
 ];
 
 router.get('/', async (req: Request, res: Response) => {
-  // Mock implementation - return mock data instead of database query
-  res.json({
-    data: mockRequests,
-    total: mockRequests.length,
-  });
+  try {
+    const { status, categoryId, clientId, limit = '20' } = req.query;
+
+    let queryText = `
+      SELECT
+        r.id,
+        r.title,
+        r.description,
+        c.name as category_name,
+        r.status,
+        r.priority,
+        r.budget_min,
+        r.budget_max,
+        r.location,
+        r.created_at,
+        r.updated_at,
+        u.first_name as client_first_name,
+        u.last_name as client_last_name
+      FROM requests r
+      LEFT JOIN categories c ON r.category_id = c.id
+      LEFT JOIN users u ON r.client_id = u.id
+      WHERE 1=1
+    `;
+    let queryParams: any[] = [];
+
+    if (status) {
+      queryText += ` AND r.status = $${queryParams.length + 1}`;
+      queryParams.push(status);
+    }
+
+    if (categoryId) {
+      queryText += ` AND r.category_id = $${queryParams.length + 1}`;
+      queryParams.push(categoryId);
+    }
+
+    if (clientId) {
+      queryText += ` AND r.client_id = $${queryParams.length + 1}`;
+      queryParams.push(clientId);
+    }
+
+    queryText += ' ORDER BY r.created_at DESC';
+
+    if (limit && limit !== 'all') {
+      queryText += ` LIMIT $${queryParams.length + 1}`;
+      queryParams.push(parseInt(limit as string));
+    }
+
+    const result = await query(queryText, queryParams);
+
+    // Transform database results to match frontend expectations
+    const requests = result.rows.map(row => ({
+      id: row.id,
+      title: row.title,
+      description: row.description,
+      service: row.category_name,
+      clientId: row.client_id,
+      status: row.status,
+      priority: row.priority,
+      budget: {
+        min: row.budget_min,
+        max: row.budget_max,
+        currency: 'EUR'
+      },
+      location: {
+        address: row.location,
+        coordinates: null // Not stored in current schema
+      },
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      attachments: [],
+      preferredSchedule: null, // Not in current schema
+      clientName: `${row.client_first_name} ${row.client_last_name}`
+    }));
+
+    res.json({
+      data: requests,
+      total: requests.length,
+    });
+  } catch (error) {
+    console.error('Error fetching requests:', error);
+    res.status(500).json({ error: 'Failed to fetch requests' });
+  }
 });
 
 /**

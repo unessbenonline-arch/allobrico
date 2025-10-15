@@ -1,4 +1,5 @@
 import express from 'express';
+import { query } from '../database';
 import { Category } from '../types';
 
 const router = express.Router();
@@ -333,20 +334,44 @@ const mockCategories: Category[] = [
 ];
 
 // GET /api/categories - Get all categories
-router.get('/', (req, res) => {
-  const { popular, limit = '20' } = req.query;
-  let categories = mockCategories;
+router.get('/', async (req, res) => {
+  try {
+    const { popular, limit = '20' } = req.query;
 
-  if (popular === 'true') {
-    categories = categories.filter((cat) => cat.popular);
+    let queryText = 'SELECT * FROM categories WHERE is_active = true';
+    let queryParams: any[] = [];
+
+    if (popular === 'true') {
+      queryText += ' AND sort_order < 5'; // Consider first 5 as popular
+    }
+
+    queryText += ' ORDER BY sort_order ASC, name ASC';
+
+    if (limit && limit !== 'all') {
+      queryText += ' LIMIT $1';
+      queryParams.push(parseInt(limit as string));
+    }
+
+    const result = await query(queryText, queryParams);
+
+    // Transform database results to match frontend expectations
+    const categories = result.rows.map(row => ({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      icon: row.icon || '🔧', // Use icon from database
+      subcategories: [], // Could be implemented as separate table
+      popular: row.sort_order < 5
+    }));
+
+    res.json({
+      data: categories,
+      total: categories.length,
+    });
+  } catch (error) {
+    console.error('Error fetching categories:', error);
+    res.status(500).json({ error: 'Failed to fetch categories' });
   }
-
-  const limitedCategories = categories.slice(0, parseInt(limit as string));
-
-  res.json({
-    data: limitedCategories,
-    total: mockCategories.length,
-  });
 });
 
 // GET /api/categories/:id - Get category by ID

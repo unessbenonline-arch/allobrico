@@ -1,4 +1,5 @@
 import express from 'express';
+import { query } from '../database';
 
 const router = express.Router();
 
@@ -146,12 +147,53 @@ const router = express.Router();
  *                 total:
  *                   type: integer
  */
-router.get('/', (req, res) => {
-  // Mock implementation
-  res.json({
-    data: [],
-    total: 0,
-  });
+router.get('/', async (req, res) => {
+  try {
+    const { role, status, limit = '20' } = req.query;
+
+    let queryText = `
+      SELECT
+        id,
+        email,
+        first_name,
+        last_name,
+        phone,
+        role,
+        status,
+        created_at,
+        updated_at
+      FROM users
+      WHERE 1=1
+    `;
+    let queryParams: any[] = [];
+
+    if (role) {
+      queryText += ` AND role = $${queryParams.length + 1}`;
+      queryParams.push(role);
+    }
+
+    if (status) {
+      queryText += ` AND status = $${queryParams.length + 1}`;
+      queryParams.push(status);
+    }
+
+    queryText += ' ORDER BY created_at DESC';
+
+    if (limit && limit !== 'all') {
+      queryText += ` LIMIT $${queryParams.length + 1}`;
+      queryParams.push(parseInt(limit as string));
+    }
+
+    const result = await query(queryText, queryParams);
+
+    res.json({
+      data: result.rows,
+      total: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
+  }
 });
 
 /**
