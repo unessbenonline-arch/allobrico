@@ -1,0 +1,68 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e1]:
+  - generic [ref=e4]:
+    - generic [ref=e5]:
+      - img [ref=e8]
+      - heading [level=3] [ref=e14]: AlloBrico
+      - paragraph [ref=e15]: Votre plateforme de services professionnels
+    - generic [ref=e16]:
+      - heading [level=4] [ref=e17]: Connexion
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - generic [ref=e21]:
+            - text: Adresse email
+            - generic [ref=e22]: "*"
+          - generic [ref=e23]:
+            - img [ref=e24]
+            - textbox [ref=e27]:
+              - /placeholder: vous@email.fr
+              - text: test@example.com
+            - group:
+              - generic: Adresse email *
+        - generic [ref=e28]:
+          - generic [ref=e29]:
+            - text: Mot de passe
+            - generic [ref=e30]: "*"
+          - generic [ref=e31]:
+            - img [ref=e32]
+            - textbox [ref=e35]:
+              - /placeholder: ••••••••
+              - text: password123
+            - group:
+              - generic: Mot de passe *
+        - generic [ref=e36]:
+          - generic [ref=e37]: Type de compte
+          - generic [ref=e38]:
+            - combobox [expanded] [ref=e39] [cursor=pointer]: Client particulier
+            - textbox: client
+            - img
+            - group:
+              - generic: Type de compte
+        - button [ref=e40] [cursor=pointer]: Se connecter
+      - separator [ref=e41]
+      - heading [level=6] [ref=e42]: Accès démo instantané
+      - generic [ref=e43]:
+        - button [ref=e44] [cursor=pointer]:
+          - img [ref=e46]
+          - text: Client
+        - button [ref=e49] [cursor=pointer]:
+          - img [ref=e51]
+          - text: Artisan
+        - button [ref=e53] [cursor=pointer]:
+          - img [ref=e55]
+          - text: Entreprise
+        - button [ref=e58] [cursor=pointer]:
+          - img [ref=e60]
+          - text: Admin
+      - generic [ref=e62]:
+        - button [ref=e63] [cursor=pointer]: Mot de passe oublié ?
+        - button [ref=e64] [cursor=pointer]: Créer un compte
+    - paragraph [ref=e66]: Une plateforme pour particuliers, artisans et entreprises.
+  - listbox "Type de compte" [ref=e69]:
+    - option "Client particulier" [active] [selected] [ref=e70] [cursor=pointer]: Client particulier
+    - option "Artisan / Professionnel" [ref=e71] [cursor=pointer]
+    - option "Entreprise" [ref=e72] [cursor=pointer]
+    - option "Administrateur" [ref=e73] [cursor=pointer]
+```

@@ -1,0 +1,116 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - img [ref=e10]
+        - generic [ref=e16]:
+          - heading "AlloBrico" [level=5] [ref=e17]
+          - paragraph [ref=e18]: Espace Client
+      - generic [ref=e19]:
+        - generic [ref=e20]:
+          - button [ref=e21] [cursor=pointer]:
+            - img [ref=e22]
+          - generic: "3"
+        - button "3" [ref=e24] [cursor=pointer]:
+          - generic [ref=e25]:
+            - img [ref=e26]
+            - generic [ref=e29]: "3"
+        - generic [ref=e30]:
+          - paragraph [ref=e31]: Marie Dupont
+          - generic [ref=e32]: marie.dupont@email.fr
+        - generic [ref=e33]: MD
+        - button "Passer en mode sombre" [ref=e34] [cursor=pointer]:
+          - img [ref=e35]
+        - button "Déconnexion" [ref=e37] [cursor=pointer]:
+          - img [ref=e38]
+  - generic [ref=e42]:
+    - generic [ref=e43]:
+      - generic [ref=e44]:
+        - generic [ref=e45]:
+          - heading "Espace Client" [level=4] [ref=e46]:
+            - img [ref=e47]
+            - text: Espace Client
+          - paragraph [ref=e50]: Trouvez des professionnels ou gérez vos demandes
+        - button "Nouvelle demande" [ref=e51] [cursor=pointer]:
+          - img [ref=e53]
+          - text: Nouvelle demande
+      - tablist [ref=e57]:
+        - tab "Trouver un professionnel" [selected] [ref=e58] [cursor=pointer]:
+          - img [ref=e59]
+          - text: Trouver un professionnel
+        - tab "Mes demandes" [ref=e62] [cursor=pointer]:
+          - img [ref=e63]
+          - text: Mes demandes
+      - generic [ref=e68]:
+        - generic [ref=e70]:
+          - img [ref=e72]
+          - 'textbox "Où se situe votre projet ? (ex: Paris 15ème, Versailles...)" [ref=e75]'
+          - group
+        - generic [ref=e77]:
+          - generic: Catégorie
+          - generic [ref=e78]:
+            - combobox "Catégorie" [ref=e79] [cursor=pointer]
+            - textbox
+            - img
+            - group:
+              - generic: Catégorie
+        - button "Rechercher" [ref=e80] [cursor=pointer]:
+          - img [ref=e82]
+          - text: Rechercher
+    - generic [ref=e85]:
+      - heading "Filtres" [level=6] [ref=e86]
+      - generic [ref=e87]:
+        - button "⚡ Disponible maintenant" [ref=e88] [cursor=pointer]:
+          - generic [ref=e89]: ⚡ Disponible maintenant
+        - button "⭐ Très bien noté" [ref=e90] [cursor=pointer]:
+          - generic [ref=e91]: ⭐ Très bien noté
+        - button "🏢 Entreprise" [ref=e92] [cursor=pointer]:
+          - generic [ref=e93]: 🏢 Entreprise
+        - button "👤 Artisan" [ref=e94] [cursor=pointer]:
+          - generic [ref=e95]: 👤 Artisan
+        - button "📅 Weekend" [ref=e96] [cursor=pointer]:
+          - generic [ref=e97]: 📅 Weekend
+    - generic [ref=e98]:
+      - generic [ref=e100]:
+        - generic [ref=e101]:
+          - generic [ref=e102]:
+            - paragraph [ref=e103]: Carte des professionnels
+            - generic [ref=e104]:
+              - button "Agrandir" [ref=e105] [cursor=pointer]:
+                - img [ref=e107]
+                - text: Agrandir
+              - button "Centrer" [ref=e110] [cursor=pointer]:
+                - img [ref=e112]
+                - text: Centrer
+              - button "Me localiser" [ref=e115] [cursor=pointer]:
+                - img [ref=e117]
+                - text: Me localiser
+          - generic [ref=e121]:
+            - generic:
+              - generic [ref=e122]:
+                - button "Zoom in" [ref=e123] [cursor=pointer]: +
+                - button "Zoom out" [ref=e124] [cursor=pointer]: −
+              - button "Layers" [ref=e126] [cursor=pointer]
+        - generic [ref=e127]:
+          - paragraph [ref=e128]: Résultats
+          - heading "0" [level=3] [ref=e129]
+          - paragraph [ref=e130]: professionnels trouvés
+      - generic [ref=e131]:
+        - generic [ref=e132]:
+          - heading "Professionnels disponibles" [level=6] [ref=e133]:
+            - img [ref=e134]
+            - text: Professionnels disponibles
+          - generic [ref=e140]:
+            - combobox [ref=e141] [cursor=pointer]: Trier par pertinence
+            - textbox: pertinence
+            - img
+            - group
+        - generic [ref=e142]:
+          - img [ref=e143]
+          - heading "Aucun professionnel trouvé" [level=6] [ref=e148]
+          - paragraph [ref=e149]: Essayez de modifier vos filtres ou votre zone de recherche
+          - button "Réinitialiser les filtres" [ref=e150] [cursor=pointer]
+```

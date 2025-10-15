@@ -1,0 +1,62 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - img [ref=e8]
+    - heading "AlloBrico" [level=3] [ref=e14]
+    - paragraph [ref=e15]: Votre plateforme de services professionnels
+  - generic [ref=e16]:
+    - heading "Connexion" [level=4] [ref=e17]
+    - generic [ref=e19]:
+      - generic [ref=e20]:
+        - generic [ref=e21]:
+          - text: Adresse email
+          - generic [ref=e22]: "*"
+        - generic [ref=e23]:
+          - img [ref=e24]
+          - textbox "Adresse email" [ref=e27]:
+            - /placeholder: vous@email.fr
+            - text: test@example.com
+          - group:
+            - generic: Adresse email *
+      - generic [ref=e28]:
+        - generic [ref=e29]:
+          - text: Mot de passe
+          - generic [ref=e30]: "*"
+        - generic [ref=e31]:
+          - img [ref=e32]
+          - textbox "Mot de passe" [ref=e35]:
+            - /placeholder: ••••••••
+            - text: password123
+          - group:
+            - generic: Mot de passe *
+      - generic [ref=e36]:
+        - generic [ref=e37]: Type de compte
+        - generic [ref=e38]:
+          - combobox "Type de compte" [ref=e39] [cursor=pointer]: Artisan / Professionnel
+          - textbox: worker
+          - img
+          - group:
+            - generic: Type de compte
+      - button "Se connecter" [active] [ref=e40] [cursor=pointer]: Se connecter
+    - separator [ref=e41]
+    - heading "Accès démo instantané" [level=6] [ref=e42]
+    - generic [ref=e43]:
+      - button "Client" [ref=e44] [cursor=pointer]:
+        - img [ref=e46]
+        - text: Client
+      - button "Artisan" [ref=e49] [cursor=pointer]:
+        - img [ref=e51]
+        - text: Artisan
+      - button "Entreprise" [ref=e53] [cursor=pointer]:
+        - img [ref=e55]
+        - text: Entreprise
+      - button "Admin" [ref=e58] [cursor=pointer]:
+        - img [ref=e60]
+        - text: Admin
+    - generic [ref=e62]:
+      - button "Mot de passe oublié ?" [ref=e63] [cursor=pointer]
+      - button "Créer un compte" [ref=e64] [cursor=pointer]
+  - paragraph [ref=e66]: Une plateforme pour particuliers, artisans et entreprises.
+```

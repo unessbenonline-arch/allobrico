@@ -1,0 +1,91 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e6]:
+      - generic [ref=e7]:
+        - img [ref=e10]
+        - generic [ref=e16]:
+          - heading "AlloBrico" [level=5] [ref=e17]
+          - paragraph [ref=e18]: Espace Artisan
+      - generic [ref=e19]:
+        - button "Formation" [ref=e20] [cursor=pointer]:
+          - img [ref=e22]
+          - text: Formation
+        - button [ref=e26] [cursor=pointer]:
+          - img [ref=e27]
+        - button "3" [ref=e29] [cursor=pointer]:
+          - generic [ref=e30]:
+            - img [ref=e31]
+            - generic [ref=e34]: "3"
+        - generic [ref=e35]:
+          - paragraph [ref=e36]: Pierre Martin
+          - generic [ref=e37]: marie.dupont@email.fr
+        - generic [ref=e38]: PM
+        - button "Passer en mode sombre" [ref=e39] [cursor=pointer]:
+          - img [ref=e40]
+        - button "Déconnexion" [ref=e42] [cursor=pointer]:
+          - img [ref=e43]
+  - generic [ref=e47]:
+    - generic [ref=e48]:
+      - generic [ref=e49]:
+        - generic [ref=e50]:
+          - heading "Tableau de bord Artisan" [level=4] [ref=e51]:
+            - img [ref=e52]
+            - text: Tableau de bord Artisan
+          - paragraph [ref=e55]: Gérez vos projets, demandes et portfolio
+        - generic [ref=e56]:
+          - button "Ouvrir les paramètres du profil" [ref=e57] [cursor=pointer]:
+            - img [ref=e59]
+            - text: Profil
+          - button "Voir le planning" [ref=e62] [cursor=pointer]:
+            - img [ref=e64]
+            - text: Planning
+      - generic [ref=e67]:
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - img [ref=e70]
+            - img [ref=e73]
+          - heading "23" [level=6] [ref=e76]
+          - text: Demandes reçues
+          - generic [ref=e77]: +5 cette semaine
+        - generic [ref=e78]:
+          - generic [ref=e79]:
+            - img [ref=e80]
+            - img [ref=e83]
+          - heading "1" [level=6] [ref=e86]
+          - text: Projets actifs
+          - generic [ref=e87]: 1 terminés
+        - generic [ref=e88]:
+          - generic [ref=e89]:
+            - img [ref=e90]
+            - img [ref=e92]
+          - heading "4.8" [level=6] [ref=e95]
+          - text: Note moyenne
+          - generic [ref=e96]: ★ Excellent
+        - generic [ref=e97]:
+          - generic [ref=e98]:
+            - img [ref=e99]
+            - img [ref=e101]
+          - heading "3,450€" [level=6] [ref=e104]
+          - text: Revenus du mois
+          - generic [ref=e105]: +12% vs mois dernier
+    - generic [ref=e106]:
+      - tablist "worker dashboard tabs" [ref=e109]:
+        - tab "Demandes" [selected] [ref=e110] [cursor=pointer]
+        - tab "Projets actifs" [ref=e111] [cursor=pointer]
+        - tab "Portfolio" [ref=e112] [cursor=pointer]
+        - tab "Statistiques" [ref=e113] [cursor=pointer]
+        - tab "Messages" [ref=e114] [cursor=pointer]
+      - tabpanel [ref=e116]:
+        - generic [ref=e119]:
+          - generic [ref=e121]:
+            - heading "Nouvelles demandes" [level=6] [ref=e122]
+            - generic "Filtrer les demandes" [ref=e124]:
+              - combobox [ref=e125] [cursor=pointer]: Toutes les demandes
+              - textbox: all
+              - img
+              - group
+          - button "Voir toutes les demandes (15)" [ref=e127] [cursor=pointer]
+```
