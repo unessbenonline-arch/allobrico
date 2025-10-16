@@ -128,6 +128,23 @@ CREATE TABLE IF NOT EXISTS reports (
     resolved_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Offers table (worker offers for service requests)
+CREATE TABLE IF NOT EXISTS offers (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    request_id UUID NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+    worker_id UUID NOT NULL REFERENCES users(id),
+    price DECIMAL(10,2) NOT NULL,
+    description TEXT,
+    timeline VARCHAR(100),
+    availability TEXT,
+    status VARCHAR(30) DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'withdrawn')),
+    accepted_at TIMESTAMP WITH TIME ZONE,
+    rejected_at TIMESTAMP WITH TIME ZONE,
+    rejection_reason TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Conversations table (for chat)
 CREATE TABLE IF NOT EXISTS conversations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -143,7 +160,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT different_participants CHECK (participant_1 != participant_2),
-    UNIQUE(participant_1, participant_2, COALESCE(related_request_id, '00000000-0000-0000-0000-000000000000'::uuid))
+    CONSTRAINT unique_conversation_participants UNIQUE(participant_1, participant_2, COALESCE(related_request_id, '00000000-0000-0000-0000-000000000000'::uuid))
 );
 
 -- Messages table (for chat)
@@ -212,6 +229,9 @@ CREATE INDEX IF NOT EXISTS idx_requests_category_id ON requests(category_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
 CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_reports_reported_user_id ON reports(reported_user_id);
+CREATE INDEX IF NOT EXISTS idx_offers_request_id ON offers(request_id);
+CREATE INDEX IF NOT EXISTS idx_offers_worker_id ON offers(worker_id);
+CREATE INDEX IF NOT EXISTS idx_offers_status ON offers(status);
 CREATE INDEX IF NOT EXISTS idx_conversations_participants ON conversations(participant_1, participant_2);
 CREATE INDEX IF NOT EXISTS idx_conversations_request_id ON conversations(related_request_id);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
@@ -233,6 +253,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_requests_updated_at BEFORE UPDATE ON requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_reports_updated_at BEFORE UPDATE ON reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_offers_updated_at BEFORE UPDATE ON offers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_messages_updated_at BEFORE UPDATE ON messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_platform_settings_updated_at BEFORE UPDATE ON platform_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -283,5 +304,5 @@ ON CONFLICT DO NOTHING;
 -- Insert sample reports
 INSERT INTO reports (reporter_id, reported_user_id, type, title, description, status, priority) VALUES
 ((SELECT id FROM users WHERE email = 'client1@example.com' LIMIT 1), (SELECT id FROM users WHERE email = 'worker1@example.com' LIMIT 1), 'service_quality', 'Travail non terminé', 'L''artisan n''a pas terminé le travail commencé', 'pending', 'high'),
-((SELECT id FROM users WHERE email = 'client1@example.com' LIMIT 1), (SELECT id FROM users WHERE email = 'worker2@example.com' LIMIT 1), 'billing', 'Facture excessive', 'La facture finale dépasse largement le devis initial', 'investigating', 'medium')
+((SELECT id FROM users WHERE email = 'client1@example.com' LIMIT 1), (SELECT id FROM users WHERE email = 'worker2@example.com' LIMIT 1), 'billing', 'Facture excessive', 'La facture finale dépasse largement le devis initial', 'investigating', 'normal')
 ON CONFLICT DO NOTHING;

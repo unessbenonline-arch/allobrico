@@ -580,27 +580,45 @@ router.patch('/:id/status', (req: Request, res: Response) => {
  *       201:
  *         description: Offer submitted successfully
  */
-router.post('/:id/offers', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { workerId, price, description, timeline, availability } = req.body;
+router.post('/:id/offers', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { workerId, price, description, timeline, availability } = req.body;
 
-  // Mock offer creation
-  const offer = {
-    id: Date.now().toString(),
-    requestId: id,
-    workerId,
-    price,
-    description,
-    timeline,
-    availability,
-    status: 'pending',
-    createdAt: new Date().toISOString(),
-  };
+    // Validate required fields
+    if (!workerId || !price) {
+      return res.status(400).json({ error: 'Worker ID and price are required' });
+    }
 
-  res.status(201).json({
-    message: 'Offer submitted successfully',
-    offer
-  });
+    // Check if request exists
+    const requestCheck = await query('SELECT id FROM requests WHERE id = $1', [id]);
+    if (requestCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Check if worker exists
+    const workerCheck = await query('SELECT id FROM users WHERE id = $1 AND role = $2', [workerId, 'worker']);
+    if (workerCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Worker not found' });
+    }
+
+    // Insert offer
+    const result = await query(`
+      INSERT INTO offers (request_id, worker_id, price, description, timeline, availability)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, request_id, worker_id, price, description, timeline, availability, status, created_at
+    `, [id, workerId, price, description, timeline, availability]);
+
+    const offer = result.rows[0];
+
+    return res.status(201).json({
+      message: 'Offer submitted successfully',
+      offer
+    });
+  } catch (error) {
+    console.error('Error creating offer:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 /**
@@ -619,40 +637,59 @@ router.post('/:id/offers', (req: Request, res: Response) => {
  *       200:
  *         description: Offers retrieved successfully
  */
-router.get('/:id/offers', (req: Request, res: Response) => {
-  const { id } = req.params;
+router.get('/:id/offers', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
 
-  // Mock offers data
-  const mockOffers = [
-    {
-      id: '1',
-      requestId: id,
-      workerId: 'worker1',
-      workerName: 'Jean Martin',
-      price: 450,
-      description: 'Je propose mes services pour cette réparation. J\'ai 10 ans d\'expérience en plomberie.',
-      timeline: '2-3 jours',
-      availability: 'Disponible dès lundi',
-      status: 'pending',
-      createdAt: '2024-03-16T10:00:00Z',
-    },
-    {
-      id: '2',
-      requestId: id,
-      workerId: 'worker2',
-      workerName: 'Pierre Dubois',
-      price: 520,
-      description: 'Artisan qualifié avec assurance décennale. Intervention rapide garantie.',
-      timeline: '1-2 jours',
-      availability: 'Disponible cette semaine',
-      status: 'pending',
-      createdAt: '2024-03-16T11:30:00Z',
+    // Check if request exists
+    const requestCheck = await query('SELECT id FROM requests WHERE id = $1', [id]);
+    if (requestCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
     }
-  ];
 
-  res.json({
-    offers: mockOffers
-  });
+    // Get offers with worker details
+    const result = await query(`
+      SELECT 
+        o.id,
+        o.request_id,
+        o.worker_id,
+        o.price,
+        o.description,
+        o.timeline,
+        o.availability,
+        o.status,
+        o.created_at,
+        u.first_name || ' ' || u.last_name as worker_name,
+        u.rating as worker_rating,
+        u.jobs_completed as worker_jobs_completed
+      FROM offers o
+      JOIN users u ON o.worker_id = u.id
+      WHERE o.request_id = $1
+      ORDER BY o.created_at ASC
+    `, [id]);
+
+    const offers = result.rows.map(offer => ({
+      id: offer.id,
+      requestId: offer.request_id,
+      workerId: offer.worker_id,
+      workerName: offer.worker_name,
+      workerRating: offer.worker_rating,
+      workerJobsCompleted: offer.worker_jobs_completed,
+      price: parseFloat(offer.price),
+      description: offer.description,
+      timeline: offer.timeline,
+      availability: offer.availability,
+      status: offer.status,
+      createdAt: offer.created_at
+    }));
+
+    return res.json({
+      offers
+    });
+  } catch (error) {
+    console.error('Error fetching offers:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 /**
@@ -686,20 +723,64 @@ router.get('/:id/offers', (req: Request, res: Response) => {
  *       200:
  *         description: Offer status updated successfully
  */
-router.put('/:requestId/offers/:offerId/status', (req: Request, res: Response) => {
-  const { requestId, offerId } = req.params;
-  const { status } = req.body;
+router.put('/:requestId/offers/:offerId/status', async (req: Request, res: Response) => {
+  try {
+    const { requestId, offerId } = req.params;
+    const { status, rejectionReason } = req.body;
 
-  // Mock offer status update
-  res.json({
-    message: 'Offer status updated successfully',
-    offer: {
-      id: offerId,
-      requestId,
-      status,
-      updatedAt: new Date().toISOString(),
+    // Validate status
+    if (!['accepted', 'rejected'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status. Must be accepted or rejected' });
     }
-  });
+
+    // Check if offer exists
+    const offerCheck = await query('SELECT id, status FROM offers WHERE id = $1 AND request_id = $2', [offerId, requestId]);
+    if (offerCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+
+    const currentStatus = offerCheck.rows[0].status;
+    if (currentStatus !== 'pending') {
+      return res.status(400).json({ error: 'Offer status can only be updated when pending' });
+    }
+
+    // Update offer status
+    const updateFields = ['status = $1'];
+    const updateValues = [status];
+    let paramCount = 1;
+
+    if (status === 'accepted') {
+      updateFields.push('accepted_at = CURRENT_TIMESTAMP');
+      // If accepting, reject all other offers for this request
+      await query('UPDATE offers SET status = $1, rejected_at = CURRENT_TIMESTAMP WHERE request_id = $2 AND id != $3 AND status = $4',
+                  ['rejected', requestId, offerId, 'pending']);
+    } else if (status === 'rejected') {
+      updateFields.push('rejected_at = CURRENT_TIMESTAMP');
+      if (rejectionReason) {
+        paramCount++;
+        updateFields.push(`rejection_reason = $${paramCount}`);
+        updateValues.push(rejectionReason);
+      }
+    }
+
+    updateValues.push(offerId);
+    const result = await query(`
+      UPDATE offers 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${updateValues.length}
+      RETURNING id, request_id, worker_id, status, accepted_at, rejected_at, updated_at
+    `, updateValues);
+
+    const updatedOffer = result.rows[0];
+
+    return res.json({
+      message: 'Offer status updated successfully',
+      offer: updatedOffer
+    });
+  } catch (error) {
+    console.error('Error updating offer status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 export default router;

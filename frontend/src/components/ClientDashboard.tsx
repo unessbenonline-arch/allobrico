@@ -329,45 +329,40 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const handleViewOffers = async (request: any) => {
     try {
       setSelectedRequest(request);
-      // TODO: Replace with real API call to get offers for this request
-      const mockOffers = [
-        {
-          id: '1',
-          requestId: request.id,
-          workerId: 'worker1',
-          workerName: 'Jean Martin',
-          price: 450,
-          description: 'Je propose mes services pour cette réparation. J\'ai 10 ans d\'expérience en plomberie.',
-          timeline: '2-3 jours',
-          availability: 'Disponible dès lundi',
-          status: 'pending',
-          createdAt: '2024-03-16T10:00:00Z',
-        },
-        {
-          id: '2',
-          requestId: request.id,
-          workerId: 'worker2',
-          workerName: 'Pierre Dubois',
-          price: 520,
-          description: 'Artisan qualifié avec assurance décennale. Intervention rapide garantie.',
-          timeline: '1-2 jours',
-          availability: 'Disponible cette semaine',
-          status: 'pending',
-          createdAt: '2024-03-16T11:30:00Z',
-        }
-      ];
-      setRequestOffers(mockOffers);
+      
+      // Fetch offers from API
+      const response = await fetch(`/api/requests/${request.id}/offers`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch offers');
+      }
+      const data = await response.json();
+      setRequestOffers(data.offers || []);
       setShowOffersModal(true);
     } catch (error) {
       console.error('Error loading offers:', error);
+      setRequestOffers([]);
+      setShowOffersModal(true);
     }
   };
 
   const handleOfferResponse = async (offerId: string, status: 'accepted' | 'rejected') => {
     try {
-      // Mock API call
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Update offer status via API
+      const response = await fetch(`/api/requests/${selectedRequest.id}/offers/${offerId}/status`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update offer status');
+      }
+
+      const data = await response.json();
       
+      // Update local state
       setRequestOffers(prev => 
         prev.map(offer => 
           offer.id === offerId ? { ...offer, status } : offer
@@ -378,7 +373,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (status === 'accepted') {
         await updateRequest(selectedRequest.id, {
           status: 'in-progress',
-          workerId: requestOffers.find(o => o.id === offerId)?.workerId
+          assignedWorkerId: requestOffers.find(o => o.id === offerId)?.workerId
         });
       }
 
