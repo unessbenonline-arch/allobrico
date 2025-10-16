@@ -373,7 +373,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
       if (status === 'accepted') {
         await updateRequest(selectedRequest.id, {
           status: 'in-progress',
-          assignedWorkerId: requestOffers.find(o => o.id === offerId)?.workerId
+          workerId: requestOffers.find(o => o.id === offerId)?.workerId
         });
       }
 

@@ -783,4 +783,133 @@ router.put('/:requestId/offers/:offerId/status', async (req: Request, res: Respo
   }
 });
 
+/**
+ * @swagger
+ * /api/requests/{id}:
+ *   put:
+ *     summary: Update a service request
+ *     tags: [Requests]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [open, assigned, in_progress, completed, cancelled]
+ *               priority:
+ *                 type: string
+ *                 enum: [low, normal, high, urgent]
+ *               budget_min:
+ *                 type: number
+ *               budget_max:
+ *                 type: number
+ *               workerId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Request updated successfully
+ */
+router.put('/:id', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { title, description, status, priority, budget_min, budget_max, workerId } = req.body;
+
+    // Check if request exists
+    const requestCheck = await query('SELECT id, client_id FROM requests WHERE id = $1', [id]);
+    if (requestCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Request not found' });
+    }
+
+    // Build update query dynamically
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
+    let paramCount = 1;
+
+    if (title !== undefined) {
+      updateFields.push(`title = $${paramCount++}`);
+      updateValues.push(title);
+    }
+    if (description !== undefined) {
+      updateFields.push(`description = $${paramCount++}`);
+      updateValues.push(description);
+    }
+    if (status !== undefined) {
+      updateFields.push(`status = $${paramCount++}`);
+      updateValues.push(status);
+    }
+    if (priority !== undefined) {
+      updateFields.push(`priority = $${paramCount++}`);
+      updateValues.push(priority);
+    }
+    if (budget_min !== undefined) {
+      updateFields.push(`budget_min = $${paramCount++}`);
+      updateValues.push(budget_min);
+    }
+    if (budget_max !== undefined) {
+      updateFields.push(`budget_max = $${paramCount++}`);
+      updateValues.push(budget_max);
+    }
+    if (workerId !== undefined) {
+      updateFields.push(`assigned_worker_id = $${paramCount++}`);
+      updateValues.push(workerId);
+      // If assigning a worker, also set assigned_at
+      if (status === 'assigned' || status === 'in_progress') {
+        updateFields.push(`assigned_at = CURRENT_TIMESTAMP`);
+      }
+      if (status === 'in_progress') {
+        updateFields.push(`started_at = CURRENT_TIMESTAMP`);
+      }
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No valid fields to update' });
+    }
+
+    updateValues.push(id);
+    const result = await query(`
+      UPDATE requests 
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING id, title, description, status, priority, budget_min, budget_max, assigned_worker_id, created_at, updated_at
+    `, updateValues);
+
+    const updatedRequest = result.rows[0];
+
+    return res.json({
+      message: 'Request updated successfully',
+      request: {
+        id: updatedRequest.id,
+        title: updatedRequest.title,
+        description: updatedRequest.description,
+        status: updatedRequest.status,
+        priority: updatedRequest.priority,
+        budget: updatedRequest.budget_min || updatedRequest.budget_max ? {
+          min: updatedRequest.budget_min,
+          max: updatedRequest.budget_max,
+          currency: 'EUR'
+        } : undefined,
+        workerId: updatedRequest.assigned_worker_id,
+        createdAt: updatedRequest.created_at,
+        updatedAt: updatedRequest.updated_at
+      }
+    });
+  } catch (error) {
+    console.error('Error updating request:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;
