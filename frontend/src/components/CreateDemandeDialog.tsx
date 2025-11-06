@@ -120,6 +120,7 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [loadingCategories, setLoadingCategories] = useState(true);
+  const [activeStep, setActiveStep] = useState(0);
 
   // French cities and locations for autocomplete
   const frenchLocations = [
@@ -137,6 +138,40 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
       // Initialize location options
       setLocationOptions(frenchLocations.map(city => ({ label: city, value: city })));
     }
+  }, [open]);
+
+  // Scroll detection for stepper
+  useEffect(() => {
+    if (!open) return;
+
+    const dialogContent = document.querySelector('[role="dialog"] .MuiDialogContent-root');
+    if (!dialogContent) return;
+
+    const handleScroll = () => {
+      const sections = [
+        'step-basic-info',
+        'step-project-details', 
+        'step-budget-planning',
+        'step-specific-requirements'
+      ];
+
+      const scrollPosition = dialogContent.scrollTop + 200; // Offset for header
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const element = document.getElementById(sections[i]);
+        if (element) {
+          const htmlElement = element as HTMLElement;
+          const elementTop = htmlElement.offsetTop - (dialogContent as HTMLElement).offsetTop;
+          if (elementTop <= scrollPosition) {
+            setActiveStep(i);
+            break;
+          }
+        }
+      }
+    };
+
+    dialogContent.addEventListener('scroll', handleScroll);
+    return () => dialogContent.removeEventListener('scroll', handleScroll);
   }, [open]);
 
   const loadCategories = async () => {
@@ -220,7 +255,7 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
 
       const response = await api.post('/requests', requestData) as any;
 
-      if (response.data.success) {
+      if (response.success) {
         onSuccess();
         onClose();
         // Reset form
@@ -260,7 +295,7 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
       }
     } catch (error: any) {
       console.error('Error creating request:', error);
-      setError(error.response?.data?.message || 'Erreur lors de la création de la demande');
+      setError(error.response?.data?.message || error.message || 'Erreur lors de la création de la demande');
     } finally {
       setLoading(false);
     }
@@ -312,7 +347,26 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
         </Typography>
       </DialogTitle>
 
-      <DialogContent>
+      <DialogContent 
+        sx={{ 
+          maxHeight: '70vh',
+          overflow: 'auto',
+          '&::-webkit-scrollbar': {
+            width: '8px',
+          },
+          '&::-webkit-scrollbar-track': {
+            backgroundColor: 'rgba(0,0,0,0.1)',
+            borderRadius: '4px',
+          },
+          '&::-webkit-scrollbar-thumb': {
+            backgroundColor: 'rgba(0,0,0,0.3)',
+            borderRadius: '4px',
+            '&:hover': {
+              backgroundColor: 'rgba(0,0,0,0.5)',
+            },
+          },
+        }}
+      >
         <Box sx={{ pt: 2 }}>
           {error && (
             <Alert severity="error" sx={{ mb: 2 }}>
@@ -320,24 +374,37 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
             </Alert>
           )}
 
-          <Stepper activeStep={0} sx={{ mb: 4 }}>
-            <Step>
-              <StepLabel>Informations générales</StepLabel>
-            </Step>
-            <Step>
-              <StepLabel>Détails du projet</StepLabel>
-            </Step>
-            <Step>
-              <StepLabel>Budget & Planning</StepLabel>
-            </Step>
-            <Step>
-              <StepLabel>Exigences spécifiques</StepLabel>
-            </Step>
-          </Stepper>
+          <Box sx={{ 
+            position: 'sticky', 
+            top: 0, 
+            zIndex: 1000, 
+            bgcolor: 'background.paper',
+            borderBottom: 1,
+            borderColor: 'divider',
+            py: 2,
+            mb: 4,
+            mx: -3,
+            px: 3
+          }}>
+            <Stepper activeStep={activeStep} alternativeLabel>
+              <Step>
+                <StepLabel>Informations générales</StepLabel>
+              </Step>
+              <Step>
+                <StepLabel>Détails du projet</StepLabel>
+              </Step>
+              <Step>
+                <StepLabel>Budget & Planning</StepLabel>
+              </Step>
+              <Step>
+                <StepLabel>Exigences spécifiques</StepLabel>
+              </Step>
+            </Stepper>
+          </Box>
 
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {/* Step 1: Basic Information */}
-            <Card elevation={2}>
+            <Card elevation={2} id="step-basic-info">
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Info size={20} />
@@ -468,7 +535,7 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
             </Card>
 
             {/* Step 2: Project Details */}
-            <Card elevation={2}>
+            <Card elevation={2} id="step-project-details">
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Wrench size={20} />
@@ -615,7 +682,7 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
             </Card>
 
             {/* Step 3: Budget & Planning */}
-            <Card elevation={2}>
+            <Card elevation={2} id="step-budget-planning">
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <DollarSign size={20} />
@@ -772,7 +839,7 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
             </Card>
 
             {/* Step 4: Specific Requirements */}
-            <Card elevation={2}>
+            <Card elevation={2} id="step-specific-requirements">
               <CardContent>
                 <Typography variant="h6" gutterBottom color="primary" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                   <Settings size={20} />
