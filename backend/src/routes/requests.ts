@@ -229,12 +229,34 @@ router.get('/', async (req: Request, res: Response) => {
         r.id,
         r.title,
         r.description,
+        r.subcategory,
         c.name as category_name,
         r.status,
         r.priority,
+        r.urgency,
         r.budget_min,
         r.budget_max,
+        r.budget_type,
+        r.currency,
         r.location,
+        r.location_details,
+        r.location_type,
+        r.preferred_schedule,
+        r.preferred_start_date,
+        r.preferred_end_date,
+        r.estimated_duration,
+        r.duration_unit,
+        r.requirements,
+        r.special_instructions,
+        r.contact_preference,
+        r.complexity,
+        r.scope,
+        r.is_recurring,
+        r.recurring_frequency,
+        r.required_certifications,
+        r.materials_provided_by,
+        r.access_type,
+        r.attachments,
         r.created_at,
         r.updated_at,
         u.first_name as client_first_name,
@@ -295,26 +317,49 @@ router.get('/', async (req: Request, res: Response) => {
         title: row.title,
         description: row.description,
         service: row.category_name,
+        subcategory: row.subcategory,
         clientId: row.client_id,
         status: row.status,
         priority: row.priority,
+        urgency: row.urgency,
         budget: {
           min: row.budget_min,
           max: row.budget_max,
-          currency: 'EUR'
+          type: row.budget_type,
+          currency: row.currency
         },
         location: {
           address: row.location,
+          details: row.location_details,
+          type: row.location_type,
           coordinates: null // Not stored in current schema
+        },
+        scheduling: {
+          preferredSchedule: row.preferred_schedule,
+          preferredStartDate: row.preferred_start_date,
+          preferredEndDate: row.preferred_end_date,
+          estimatedDuration: row.estimated_duration,
+          durationUnit: row.duration_unit
+        },
+        projectDetails: {
+          complexity: row.complexity,
+          scope: row.scope,
+          materials: row.materials_provided_by,
+          access: row.access_type,
+          isRecurring: row.is_recurring,
+          recurringFrequency: row.recurring_frequency
+        },
+        requirements: {
+          technical: row.requirements,
+          specialInstructions: row.special_instructions,
+          certifications: row.required_certifications,
+          contactPreference: row.contact_preference
         },
         createdAt: row.created_at,
         updatedAt: row.updated_at,
-        attachments: [],
-        preferredSchedule: null, // Not in current schema
+        attachments: row.attachments || [],
         clientName: `${row.client_first_name} ${row.client_last_name}`
-      };
-
-      // Include assignee information if request is assigned
+      };      // Include assignee information if request is assigned
       if (row.assigned_worker_id && (row.status === 'assigned' || row.status === 'in_progress' || row.status === 'completed')) {
         request.assignedWorkerId = row.assigned_worker_id;
         request.assignee = {
@@ -392,30 +437,187 @@ router.get('/', async (req: Request, res: Response) => {
  *       400:
  *         description: Invalid request data
  */
-router.post('/', async (req: Request, res: Response) => {
+router.post('/', async (req: Request, res: Response): Promise<void> => {
   try {
-    const { title, description, categoryId, clientId, priority, budget, location, preferredSchedule } = req.body;
-
-    // Mock implementation
-    const newRequest = {
-      id: `request_${Date.now()}`,
+    const {
       title,
       description,
-      service: 'Mock Service',
+      categoryId,
+      subcategory,
       clientId,
-      status: 'pending',
-      priority: priority || 'normal',
-      budget: budget || { min: 0, max: 1000, currency: 'EUR' },
-      location: location || { address: 'Mock Address', coordinates: { lat: 48.8566, lng: 2.3522 } },
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      attachments: [],
-      preferredSchedule
+      priority = 'normal',
+      urgency = 'normal',
+      budgetMin,
+      budgetMax,
+      budgetType = 'fixed',
+      currency = 'EUR',
+      location,
+      locationDetails,
+      locationType = 'home',
+      preferredSchedule,
+      preferredStartDate,
+      preferredEndDate,
+      estimatedDuration,
+      durationUnit = 'hours',
+      requirements,
+      specialInstructions,
+      contactPreference = 'both',
+      complexity = 3,
+      scope = 'small',
+      recurring = false,
+      recurringFrequency,
+      certifications = [],
+      materials = 'client',
+      access = 'normal',
+      attachments = []
+    } = req.body;
+
+    // Validate required fields
+    if (!title || !description || !categoryId || !clientId) {
+      res.status(400).json({
+        error: 'Missing required fields',
+        message: 'Title, description, categoryId, and clientId are required'
+      });
+      return;
+    }
+
+    // Insert new request into database
+    const insertQuery = `
+      INSERT INTO requests (
+        title,
+        description,
+        category_id,
+        subcategory,
+        client_id,
+        priority,
+        urgency,
+        budget_min,
+        budget_max,
+        budget_type,
+        currency,
+        location,
+        location_details,
+        location_type,
+        preferred_schedule,
+        preferred_start_date,
+        preferred_end_date,
+        estimated_duration,
+        duration_unit,
+        requirements,
+        special_instructions,
+        contact_preference,
+        complexity,
+        scope,
+        is_recurring,
+        recurring_frequency,
+        required_certifications,
+        materials_provided_by,
+        access_type,
+        attachments,
+        status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'open')
+      RETURNING id, title, description, category_id, subcategory, client_id, status, priority, urgency,
+                budget_min, budget_max, budget_type, currency, location, location_details, location_type,
+                preferred_schedule, preferred_start_date, preferred_end_date, estimated_duration, duration_unit,
+                requirements, special_instructions, contact_preference, complexity, scope, is_recurring,
+                recurring_frequency, required_certifications, materials_provided_by, access_type,
+                attachments, created_at, updated_at
+    `;
+
+    const values = [
+      title,
+      description,
+      categoryId,
+      subcategory,
+      clientId,
+      priority,
+      urgency,
+      budgetMin,
+      budgetMax,
+      budgetType,
+      currency,
+      location,
+      locationDetails,
+      locationType,
+      preferredSchedule,
+      preferredStartDate,
+      preferredEndDate,
+      estimatedDuration,
+      durationUnit,
+      requirements,
+      specialInstructions,
+      contactPreference,
+      complexity,
+      scope,
+      recurring,
+      recurring ? recurringFrequency : null,
+      certifications,
+      materials,
+      access,
+      attachments
+    ];
+
+    const result = await query(insertQuery, values);
+    const newRequest = result.rows[0];
+
+    // Get category name for response
+    const categoryQuery = 'SELECT name FROM categories WHERE id = $1';
+    const categoryResult = await query(categoryQuery, [categoryId]);
+    const categoryName = categoryResult.rows[0]?.name || 'Unknown';
+
+    // Format response
+    const formattedRequest = {
+      id: newRequest.id,
+      title: newRequest.title,
+      description: newRequest.description,
+      service: categoryName,
+      subcategory: newRequest.subcategory,
+      clientId: newRequest.client_id,
+      status: newRequest.status,
+      priority: newRequest.priority,
+      urgency: newRequest.urgency,
+      budget: {
+        min: parseFloat(newRequest.budget_min) || 0,
+        max: parseFloat(newRequest.budget_max) || 0,
+        type: newRequest.budget_type,
+        currency: newRequest.currency
+      },
+      location: {
+        address: newRequest.location,
+        details: newRequest.location_details,
+        type: newRequest.location_type,
+        coordinates: null // Will be calculated later if needed
+      },
+      scheduling: {
+        preferredSchedule: newRequest.preferred_schedule,
+        preferredStartDate: newRequest.preferred_start_date,
+        preferredEndDate: newRequest.preferred_end_date,
+        estimatedDuration: newRequest.estimated_duration,
+        durationUnit: newRequest.duration_unit
+      },
+      projectDetails: {
+        complexity: newRequest.complexity,
+        scope: newRequest.scope,
+        materials: newRequest.materials_provided_by,
+        access: newRequest.access_type,
+        isRecurring: newRequest.is_recurring,
+        recurringFrequency: newRequest.recurring_frequency
+      },
+      requirements: {
+        technical: newRequest.requirements,
+        specialInstructions: newRequest.special_instructions,
+        certifications: newRequest.required_certifications,
+        contactPreference: newRequest.contact_preference
+      },
+      attachments: newRequest.attachments || [],
+      createdAt: newRequest.created_at,
+      updatedAt: newRequest.updated_at
     };
 
     res.status(201).json({
       success: true,
-      data: newRequest,
+      data: formattedRequest,
+      message: 'Request created successfully'
     });
   } catch (error) {
     console.error('Error creating request:', error);

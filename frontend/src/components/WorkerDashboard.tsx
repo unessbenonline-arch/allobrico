@@ -45,7 +45,6 @@ import {
   CardContent,
   CardMedia,
   CardActions,
-  Grid,
   Chip,
   Avatar,
   Badge,
@@ -188,6 +187,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   const [projectDialog, setProjectDialog] = useState({ open: false, project: null as Project | null });
   const [portfolioDialog, setPortfolioDialog] = useState({ open: false, item: null as PortfolioItem | null });
   const [offerDialog, setOfferDialog] = useState({ open: false, request: null as any });
+  const [requestDetailDialog, setRequestDetailDialog] = useState({ open: false, request: null as any });
 
   // Form states
   const [progressForm, setProgressForm] = useState({
@@ -257,42 +257,10 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
     offered?: boolean;
   };
 
+  const [availableRequests, setAvailableRequests] = React.useState<PendingRequest[]>([]);
+
   const [pendingRequests, setPendingRequests] = React.useState<PendingRequest[]>(
-    myRequests || [
-      {
-        id: 1,
-        type: 'Plomberie',
-        title: 'Réparation fuite évier',
-        location: 'Paris 15ème',
-        urgency: 'urgent',
-        distance: '2.3km',
-        budget: '150-200€',
-        time: 'Il y a 2h',
-        client: 'Marie L.',
-      },
-      {
-        id: 2,
-        type: 'Électricité',
-        title: 'Installation prises cuisine',
-        location: 'Issy-les-Moulineaux',
-        urgency: 'normal',
-        distance: '5.1km',
-        budget: '300-500€',
-        time: 'Il y a 4h',
-        client: 'Jean M.',
-      },
-      {
-        id: 3,
-        type: 'Plomberie',
-        title: 'Changement chauffe-eau',
-        location: 'Vanves',
-        urgency: 'planned',
-        distance: '3.8km',
-        budget: '800-1200€',
-        time: 'Il y a 1 jour',
-        client: 'Sophie R.',
-      },
-    ]
+    myRequests || []
   );
 
   useEffect(() => {
@@ -302,7 +270,48 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      // Get worker's projects, portfolio, and requests from API
+      // Fetch available requests for workers to view
+      const availableRequestsResponse = await api.get('/requests?status=open&limit=20');
+      const availableRequestsData = (availableRequestsResponse as any).data?.data || [];
+
+      // Transform available requests
+      const transformedAvailableRequests = availableRequestsData.map((request: any) => ({
+        id: request.id,
+        type: request.service || request.category_name || 'Service',
+        title: request.title,
+        location: typeof request.location === 'string' ? request.location : request.location?.address || 'N/A',
+        urgency: request.urgency || request.priority === 'urgent' ? 'urgent' : request.priority === 'high' ? 'normal' : 'planned',
+        distance: 'N/A', // Would need geolocation calculation
+        budget: request.budget ? 
+          `${request.budget.min || 0}-${request.budget.max || 0}${request.budget.currency || '€'}` : 
+          'N/A',
+        time: request.createdAt ? `Il y a ${Math.floor((Date.now() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60))}h` : 'N/A',
+        client: request.clientName || 'Client',
+        offered: false,
+        // Rich data fields
+        description: request.description,
+        subcategory: request.subcategory,
+        complexity: request.projectDetails?.complexity || 3,
+        scope: request.projectDetails?.scope || 'small',
+        estimatedDuration: request.scheduling?.estimatedDuration,
+        durationUnit: request.scheduling?.durationUnit || 'hours',
+        preferredStartDate: request.scheduling?.preferredStartDate,
+        preferredEndDate: request.scheduling?.preferredEndDate,
+        isRecurring: request.projectDetails?.isRecurring || false,
+        recurringFrequency: request.projectDetails?.recurringFrequency,
+        requiredCertifications: request.requirements?.certifications || [],
+        specialInstructions: request.requirements?.specialInstructions,
+        locationType: request.location?.type || 'home',
+        accessType: request.projectDetails?.access || 'normal',
+        materialsProvidedBy: request.projectDetails?.materials || 'client',
+        contactPreference: request.requirements?.contactPreference || 'both',
+        budgetType: request.budget?.type || 'fixed',
+        technicalRequirements: request.requirements?.technical
+      }));
+
+      setAvailableRequests(transformedAvailableRequests);
+
+      // Get worker's projects, portfolio, and requests from API (keeping existing logic)
       const [projectsResponse, portfolioResponse, requestsResponse] = await Promise.all([
         projectService.getWorkerProjects(userProfile.id),
         workerService.getWorkerPortfolio(userProfile.id),
@@ -316,14 +325,14 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
       // Calculate progress based on completed milestones for each project
       const projectsWithCalculatedProgress = projects.map((project: Project) => ({
         ...project,
-        progress: project.milestones && project.milestones.length > 0 
+        progress: project.milestones && project.milestones.length > 0
           ? Math.round((project.milestones.filter((m: any) => m.completed).length / project.milestones.length) * 100)
           : 0
       }));
 
       setProjects(projectsWithCalculatedProgress);
       setPortfolio(portfolio);
-      
+
       // Transform requests to match PendingRequest structure
       const transformedRequests = requests.map((request: any) => ({
         id: request.id,
@@ -337,7 +346,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
         client: request.clientId || 'Client',
         offered: false
       }));
-      
+
       setPendingRequests(transformedRequests);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
@@ -612,7 +621,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
               </Box>
 
               <Box>
-                {pendingRequests.map((request, idx) => (
+                {availableRequests.map((request, idx) => (
                   <Box key={request.id} sx={{ p: 2 }}>
                     <Stack
                       direction="row"
@@ -733,10 +742,20 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                       sx={{ flexWrap: { xs: 'wrap', sm: 'nowrap' } }}
                     >
                       <Button
+                        variant="outlined"
+                        color="info"
+                        sx={{ flex: 1, minWidth: 120 }}
+                        aria-label={`Voir les détails de ${request.title}`}
+                        onClick={() => setRequestDetailDialog({ open: true, request })}
+                      >
+                        <Eye size={16} style={{ marginRight: 8 }} />
+                        Détails
+                      </Button>
+                      <Button
                         variant={request.offered ? 'outlined' : 'contained'}
                         color={request.offered ? ('success' as any) : 'primary'}
                         disabled={!!request.offered}
-                        sx={{ flex: 1, minWidth: 180 }}
+                        sx={{ flex: 1, minWidth: 140 }}
                         aria-label={`Faire une offre pour ${request.title}`}
                         onClick={() => handleOffer(request)}
                       >
@@ -778,7 +797,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
                 }}
               >
                 <Button variant="outlined">
-                  Voir toutes les demandes ({pendingRequests.length + 15})
+                  Voir toutes les demandes ({availableRequests.length})
                 </Button>
               </Box>
             </Paper>
@@ -1498,6 +1517,272 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
             disabled={!offerForm.price || !offerForm.description || !offerForm.timeline || !offerForm.availability}
           >
             Envoyer l'offre
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Request Detail Dialog */}
+      <Dialog
+        open={requestDetailDialog.open}
+        onClose={() => setRequestDetailDialog({ open: false, request: null })}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          <Typography variant="h6" fontWeight={700}>
+            Détails de la demande
+          </Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          {requestDetailDialog.request && (
+            <Stack spacing={3}>
+              <Box>
+                <Typography variant="h5" fontWeight={700} gutterBottom>
+                  {requestDetailDialog.request.title}
+                </Typography>
+                <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 2 }}>
+                  <Chip
+                    label={requestDetailDialog.request.type}
+                    color="primary"
+                    size="small"
+                  />
+                  {requestDetailDialog.request.subcategory && (
+                    <Chip
+                      label={requestDetailDialog.request.subcategory}
+                      color="secondary"
+                      size="small"
+                      variant="outlined"
+                    />
+                  )}
+                  <Chip
+                    label={requestDetailDialog.request.urgency === 'urgent' ? 'Urgent' : requestDetailDialog.request.urgency === 'critical' ? 'Critique' : 'Normal'}
+                    color={requestDetailDialog.request.urgency === 'urgent' || requestDetailDialog.request.urgency === 'critical' ? 'error' : 'default'}
+                    size="small"
+                  />
+                  <Chip
+                    label={`Complexité: ${requestDetailDialog.request.complexity || 3}/5`}
+                    color="info"
+                    size="small"
+                    variant="outlined"
+                  />
+                </Stack>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Description du projet
+                </Typography>
+                <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+                  {requestDetailDialog.request.description || 'Aucune description disponible'}
+                </Typography>
+
+                {/* Project Details */}
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mb: 2 }}>
+                  <Box sx={{ width: { xs: '100%', md: '48%' } }}>
+                    <Typography variant="subtitle2" color="primary">Échelle du projet</Typography>
+                    <Typography variant="body2">
+                      {requestDetailDialog.request.scope === 'small' ? 'Petit projet' :
+                       requestDetailDialog.request.scope === 'medium' ? 'Moyen projet' :
+                       requestDetailDialog.request.scope === 'large' ? 'Grand projet' : 'Entreprise'}
+                    </Typography>
+                  </Box>
+                  <Box sx={{ width: { xs: '100%', md: '48%' } }}>
+                    <Typography variant="subtitle2" color="primary">Type de lieu</Typography>
+                    <Typography variant="body2">
+                      {requestDetailDialog.request.locationType === 'home' ? 'Domicile' :
+                       requestDetailDialog.request.locationType === 'business' ? 'Commerce/Bureau' : 'Lieu public'}
+                    </Typography>
+                  </Box>
+                  {requestDetailDialog.request.estimatedDuration && (
+                    <Box sx={{ width: { xs: '100%', md: '48%' } }}>
+                      <Typography variant="subtitle2" color="primary">Durée estimée</Typography>
+                      <Typography variant="body2">
+                        {requestDetailDialog.request.estimatedDuration} {requestDetailDialog.request.durationUnit}
+                      </Typography>
+                    </Box>
+                  )}
+                  {requestDetailDialog.request.isRecurring && (
+                    <Box sx={{ width: { xs: '100%', md: '48%' } }}>
+                      <Typography variant="subtitle2" color="primary">Projet récurrent</Typography>
+                      <Typography variant="body2">
+                        {requestDetailDialog.request.recurringFrequency === 'weekly' ? 'Hebdomadaire' :
+                         requestDetailDialog.request.recurringFrequency === 'monthly' ? 'Mensuelle' :
+                         requestDetailDialog.request.recurringFrequency === 'quarterly' ? 'Trimestrielle' : 'Régulier'}
+                      </Typography>
+                    </Box>
+                  )}
+                </Box>
+              </Box>
+
+              <Divider />
+
+              <Box>
+                <Typography variant="h6" fontWeight={600} gutterBottom>
+                  Informations pratiques
+                </Typography>
+                <Stack spacing={2}>
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <MapPin size={20} color="#666" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        Localisation
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {requestDetailDialog.request.location}
+                        {requestDetailDialog.request.location?.details && (
+                          <><br />{requestDetailDialog.request.location.details}</>
+                        )}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        Accès: {requestDetailDialog.request.accessType === 'normal' ? 'Normal' :
+                               requestDetailDialog.request.accessType === 'restricted' ? 'Restreint' : 'Complet'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <DollarSign size={20} color="#666" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        Budget ({requestDetailDialog.request.budget?.type || 'Prix fixe'})
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {requestDetailDialog.request.budget?.min || 0} - {requestDetailDialog.request.budget?.max || 0} {requestDetailDialog.request.budget?.currency || '€'}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        Matériaux: {requestDetailDialog.request.materialsProvidedBy === 'client' ? 'Fournis par client' :
+                                   requestDetailDialog.request.materialsProvidedBy === 'worker' ? 'Inclus' : 'À discuter'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Calendar size={20} color="#666" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        Dates souhaitées
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {requestDetailDialog.request.preferredStartDate && requestDetailDialog.request.preferredEndDate ?
+                          `${new Date(requestDetailDialog.request.preferredStartDate).toLocaleDateString('fr-FR')} - ${new Date(requestDetailDialog.request.preferredEndDate).toLocaleDateString('fr-FR')}` :
+                          requestDetailDialog.request.scheduling?.preferredSchedule || 'À définir'
+                        }
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Users size={20} color="#666" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        Client
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {requestDetailDialog.request.client}
+                      </Typography>
+                      <Typography variant="caption" color="text.disabled">
+                        Contact: {requestDetailDialog.request.contactPreference === 'phone' ? 'Téléphone prioritaire' :
+                                 requestDetailDialog.request.contactPreference === 'email' ? 'Email prioritaire' : 'Téléphone ou email'}
+                      </Typography>
+                    </Box>
+                  </Stack>
+
+                  <Stack direction="row" spacing={2} alignItems="center">
+                    <Clock size={20} color="#666" />
+                    <Box>
+                      <Typography variant="body2" fontWeight={500}>
+                        Publié
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {requestDetailDialog.request.time}
+                      </Typography>
+                    </Box>
+                  </Stack>
+                </Stack>
+              </Box>
+
+              {requestDetailDialog.request.technicalRequirements && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Exigences techniques
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {requestDetailDialog.request.technicalRequirements}
+                  </Typography>
+                </Box>
+              )}
+
+              {requestDetailDialog.request.specialInstructions && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Instructions spéciales
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    {requestDetailDialog.request.specialInstructions}
+                  </Typography>
+                </Box>
+              )}
+
+              {requestDetailDialog.request.requiredCertifications && requestDetailDialog.request.requiredCertifications.length > 0 && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Certifications requises
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {requestDetailDialog.request.requiredCertifications.map((cert: string, index: number) => (
+                      <Chip
+                        key={index}
+                        label={cert}
+                        size="small"
+                        color="warning"
+                        variant="outlined"
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
+              {requestDetailDialog.request.attachments && requestDetailDialog.request.attachments.length > 0 && (
+                <Box>
+                  <Typography variant="h6" fontWeight={600} gutterBottom>
+                    Pièces jointes
+                  </Typography>
+                  <Stack direction="row" spacing={1} flexWrap="wrap">
+                    {requestDetailDialog.request.attachments.map((attachment: string, index: number) => (
+                      <Chip
+                        key={index}
+                        label={attachment}
+                        size="small"
+                        variant="outlined"
+                        onClick={() => {
+                          // Handle attachment download/view
+                          console.log('View attachment:', attachment);
+                        }}
+                        sx={{ cursor: 'pointer' }}
+                      />
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRequestDetailDialog({ open: false, request: null })}>
+            Fermer
+          </Button>
+          <Button
+            variant="contained"
+            onClick={() => {
+              setRequestDetailDialog({ open: false, request: null });
+              if (requestDetailDialog.request) {
+                handleOffer(requestDetailDialog.request);
+              }
+            }}
+          >
+            Faire une offre
           </Button>
         </DialogActions>
       </Dialog>

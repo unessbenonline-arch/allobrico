@@ -75,17 +75,44 @@ CREATE TABLE IF NOT EXISTS requests (
 
     status VARCHAR(30) DEFAULT 'open' CHECK (status IN ('open', 'assigned', 'in_progress', 'completed', 'cancelled', 'disputed')),
     priority VARCHAR(20) DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    urgency VARCHAR(20) DEFAULT 'normal' CHECK (urgency IN ('low', 'normal', 'high', 'critical')),
 
+    -- Enhanced budget fields
     budget_min DECIMAL(10,2),
     budget_max DECIMAL(10,2),
+    budget_type VARCHAR(20) DEFAULT 'fixed' CHECK (budget_type IN ('fixed', 'hourly', 'daily', 'project')),
+    currency VARCHAR(3) DEFAULT 'EUR',
     final_budget DECIMAL(10,2),
 
+    -- Enhanced location fields
     location VARCHAR(255),
     location_details TEXT,
-    preferred_schedule TEXT,
+    location_type VARCHAR(20) DEFAULT 'home' CHECK (location_type IN ('home', 'business', 'public')),
+    access_type VARCHAR(20) DEFAULT 'normal' CHECK (access_type IN ('normal', 'restricted', 'full')),
 
+    -- Enhanced scheduling
+    preferred_schedule TEXT,
+    preferred_start_date DATE,
+    preferred_end_date DATE,
+    estimated_duration INTEGER,
+    duration_unit VARCHAR(10) DEFAULT 'hours' CHECK (duration_unit IN ('hours', 'days', 'weeks')),
+
+    -- Project details
+    subcategory VARCHAR(50),
+    complexity INTEGER DEFAULT 3 CHECK (complexity >= 1 AND complexity <= 5),
+    scope VARCHAR(20) DEFAULT 'small' CHECK (scope IN ('small', 'medium', 'large', 'enterprise')),
+    materials_provided_by VARCHAR(20) DEFAULT 'client' CHECK (materials_provided_by IN ('client', 'worker', 'shared')),
+
+    -- Requirements and special instructions
     attachments TEXT[], -- Array of file URLs
     requirements TEXT,
+    special_instructions TEXT,
+    required_certifications TEXT[], -- Array of required certifications
+    contact_preference VARCHAR(20) DEFAULT 'both' CHECK (contact_preference IN ('phone', 'email', 'both')),
+
+    -- Recurring projects
+    is_recurring BOOLEAN DEFAULT FALSE,
+    recurring_frequency VARCHAR(20) CHECK (recurring_frequency IN ('daily', 'weekly', 'biweekly', 'monthly', 'quarterly')),
 
     assigned_at TIMESTAMP WITH TIME ZONE,
     started_at TIMESTAMP WITH TIME ZONE,

@@ -49,6 +49,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { api, getCategoryIcon, getLocationCoordinates, getLocationString } from '../utils';
 import { useRequests, useCategories, useWorkers } from '../stores/appStore';
+import CreateDemandeDialog from './CreateDemandeDialog';
 
 interface ClientDashboardProps {
   searchLocation: string;
@@ -490,83 +491,15 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
       </Box>
 
       {/* Request Form Modal */}
-      <Dialog
+      <CreateDemandeDialog
         open={showRequestForm}
         onClose={() => setShowRequestForm(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>Nouvelle demande de service</DialogTitle>
-        <DialogContent dividers>
-          <Stack spacing={3} sx={{ mt: 1 }}>
-            <FormControl fullWidth>
-              <InputLabel id="cat2-label">Catégorie de service</InputLabel>
-              <Select
-                labelId="cat2-label"
-                value={selectedCategory}
-                label="Catégorie de service"
-                onChange={(e) => setSelectedCategory(e.target.value)}
-              >
-                {categories.map((category) => (
-                  <MenuItem key={category.id} value={category.id}>
-                    {category.icon} {category.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              label="Description du projet"
-              placeholder="Décrivez précisément votre projet : nature des travaux, contraintes, délais, budget..."
-              multiline
-              minRows={4}
-            />
-            <TextField
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              label="Adresse du projet"
-              placeholder="Adresse complète (rue, ville, code postal)"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <MapPin size={16} />
-                  </InputAdornment>
-                ),
-              }}
-            />
-            <Stack
-              direction="row"
-              alignItems="center"
-              justifyContent="space-between"
-              sx={{ bgcolor: 'grey.50', borderRadius: 2, p: 2 }}
-            >
-              <Box>
-                <Typography fontWeight={600}>Demande urgente</Typography>
-                <Typography variant="body2" color="text.secondary">
-                  Intervention nécessaire dans les 24h
-                </Typography>
-              </Box>
-              <Button
-                onClick={() => setIsUrgent(!isUrgent)}
-                variant={isUrgent ? 'contained' : 'outlined'}
-                color={isUrgent ? 'error' : 'inherit'}
-                startIcon={<AlertCircle size={16} />}
-              >
-                {isUrgent ? 'Urgent' : 'Normal'}
-              </Button>
-            </Stack>
-          </Stack>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setShowRequestForm(false)} variant="outlined">
-            Annuler
-          </Button>
-          <Button variant="contained" onClick={handlePublishRequest}>
-            Publier la demande
-          </Button>
-        </DialogActions>
-      </Dialog>
+        onSuccess={() => {
+          setShowRequestForm(false);
+          fetchRequests(); // Refresh the requests list
+        }}
+        clientId="client-anonyme" // TODO: Use actual client ID from auth
+      />
 
       {/* Worker profile dialog */}
       <Dialog
