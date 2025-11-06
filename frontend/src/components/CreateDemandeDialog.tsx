@@ -84,34 +84,34 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
   clientId,
 }) => {
   const [formData, setFormData] = useState({
-    title: '',
-    description: '',
+    title: 'Réparation urgente de fuite d\'eau dans la cuisine',
+    description: 'Fuite importante sous l\'évier de la cuisine avec risque d\'inondation. Le robinet d\'arrêt ne fonctionne plus correctement. Besoin d\'intervention rapide avant que les dégâts ne s\'aggravent.',
     categoryId: '',
-    subcategory: '',
-    priority: 'normal',
-    urgency: 'normal',
-    budgetMin: '',
-    budgetMax: '',
-    budgetType: 'fixed', // fixed, hourly, daily, project
+    subcategory: 'plomberie',
+    priority: 'high',
+    urgency: 'urgent',
+    budgetMin: '80',
+    budgetMax: '150',
+    budgetType: 'fixed',
     currency: 'EUR',
-    location: '',
-    locationDetails: '',
-    locationType: 'home', // home, business, public
-    preferredSchedule: '',
+    location: 'Paris 15ème',
+    locationDetails: 'Appartement 3ème étage, code d\'entrée 1234A, ascenseur disponible',
+    locationType: 'home',
+    preferredSchedule: 'Aujourd\'hui si possible, disponible toute la journée',
     preferredStartDate: '',
     preferredEndDate: '',
-    estimatedDuration: '',
-    durationUnit: 'hours', // hours, days, weeks
-    requirements: '',
-    specialInstructions: '',
-    contactPreference: 'both', // phone, email, both
-    complexity: 3, // 1-5 scale
-    scope: 'small', // small, medium, large, enterprise
+    estimatedDuration: '2',
+    durationUnit: 'hours',
+    requirements: 'Artisan qualifié avec assurance décennale, outils appropriés pour réparation plomberie',
+    specialInstructions: 'Prévoir de couper l\'eau si nécessaire. Nettoyer après intervention. Fournir facture détaillée.',
+    contactPreference: 'both',
+    complexity: 3,
+    scope: 'small',
     recurring: false,
-    recurringFrequency: 'weekly', // daily, weekly, monthly
-    certifications: [] as string[],
-    materials: 'client', // client, worker, shared
-    access: 'normal', // normal, restricted, full
+    recurringFrequency: 'weekly',
+    certifications: ['plomberie'],
+    materials: 'worker',
+    access: 'normal',
   });
 
   const [categories, setCategories] = useState<Category[]>([]);
@@ -137,6 +137,8 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
       loadCategories();
       // Initialize location options
       setLocationOptions(frenchLocations.map(city => ({ label: city, value: city })));
+      // Reset stepper to first step
+      setActiveStep(0);
     }
   }, [open]);
 
@@ -163,7 +165,10 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
           const htmlElement = element as HTMLElement;
           const elementTop = htmlElement.offsetTop - (dialogContent as HTMLElement).offsetTop;
           if (elementTop <= scrollPosition) {
-            setActiveStep(i);
+            if (activeStep !== i) {
+              console.log(`Stepper: Switching to step ${i} (${sections[i]})`);
+              setActiveStep(i);
+            }
             break;
           }
         }
@@ -178,7 +183,17 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
     try {
       setLoadingCategories(true);
       const response = await api.get('/categories') as any;
-      setCategories(response.data || []);
+      const categoriesData = response.data || [];
+      setCategories(categoriesData);
+      
+      // Set default category (Plomberie) if available
+      const plomberieCategory = categoriesData.find((cat: Category) => cat.name === 'Plomberie');
+      if (plomberieCategory) {
+        setFormData(prev => ({
+          ...prev,
+          categoryId: plomberieCategory.id
+        }));
+      }
     } catch (error) {
       console.error('Error loading categories:', error);
       setError('Erreur lors du chargement des catégories');
@@ -305,34 +320,35 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
     if (!loading) {
       onClose();
       setError('');
+      // Reset to test data for easier testing
       setFormData({
-        title: '',
-        description: '',
+        title: 'Réparation urgente de fuite d\'eau dans la cuisine',
+        description: 'Fuite importante sous l\'évier de la cuisine avec risque d\'inondation. Le robinet d\'arrêt ne fonctionne plus correctement. Besoin d\'intervention rapide avant que les dégâts ne s\'aggravent.',
         categoryId: '',
-        subcategory: '',
-        priority: 'normal',
-        urgency: 'normal',
-        budgetMin: '',
-        budgetMax: '',
+        subcategory: 'plomberie',
+        priority: 'high',
+        urgency: 'urgent',
+        budgetMin: '80',
+        budgetMax: '150',
         budgetType: 'fixed',
         currency: 'EUR',
-        location: '',
-        locationDetails: '',
+        location: 'Paris 15ème',
+        locationDetails: 'Appartement 3ème étage, code d\'entrée 1234A, ascenseur disponible',
         locationType: 'home',
-        preferredSchedule: '',
+        preferredSchedule: 'Aujourd\'hui si possible, disponible toute la journée',
         preferredStartDate: '',
         preferredEndDate: '',
-        estimatedDuration: '',
+        estimatedDuration: '2',
         durationUnit: 'hours',
-        requirements: '',
-        specialInstructions: '',
+        requirements: 'Artisan qualifié avec assurance décennale, outils appropriés pour réparation plomberie',
+        specialInstructions: 'Prévoir de couper l\'eau si nécessaire. Nettoyer après intervention. Fournir facture détaillée.',
         contactPreference: 'both',
         complexity: 3,
         scope: 'small',
         recurring: false,
         recurringFrequency: 'weekly',
-        certifications: [],
-        materials: 'client',
+        certifications: ['plomberie'],
+        materials: 'worker',
         access: 'normal',
       });
       setAttachments([]);
