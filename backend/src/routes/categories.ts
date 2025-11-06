@@ -361,7 +361,8 @@ router.get('/', async (req, res) => {
       description: row.description,
       icon: row.icon || '🔧', // Use icon from database
       subcategories: [], // Could be implemented as separate table
-      popular: row.sort_order < 5
+      popular: row.sort_order < 5,
+      is_active: row.is_active
     }));
 
     res.json({
