@@ -16,6 +16,8 @@ services:
       context: .
       dockerfile: docker/Dockerfile.backend
       target: production
+    ports:
+      - "5000:5000"
     depends_on:
       - database
     environment:

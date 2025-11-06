@@ -392,21 +392,35 @@ GET /api/projects/stats/overview
 
 ## 📝 Requests API
 
+> 📖 **Complete Request Management Documentation**: See [`request-management.md`](../request-management.md) for detailed information about request statuses, lifecycle, and assignee management.
+
+### Request Status Lifecycle
+
+Requests follow a defined lifecycle with the following statuses:
+- **`open`**: Request published and available for assignment
+- **`assigned`**: Request assigned to a specific worker
+- **`in_progress`**: Work has started
+- **`completed`**: Work finished successfully
+- **`cancelled`**: Request cancelled
+
+For assigned requests, full assignee profile information is available including contact details, ratings, and portfolio.
+
 ### GET /api/requests
 
 List service requests with filtering.
 
 **Query Parameters:**
-- `status` (optional): Request status
+- `status` (optional): Request status (`open`, `assigned`, `in_progress`, `completed`, `cancelled`)
 - `category` (optional): Service category
 - `clientId` (optional): Filter by client
-- `urgency` (optional): Urgency level
+- `urgency` (optional): Urgency level (`low`, `normal`, `high`, `urgent`)
 - `limit` (optional): Results per page (default: 10)
 - `offset` (optional): Pagination offset (default: 0)
+- `include` (optional): Include related data (`assignee` for assigned requests)
 
 **Request:**
 ```http
-GET /api/requests?status=pending&urgency=high
+GET /api/requests?status=assigned&include=assignee
 ```
 
 **Response (200):**
@@ -430,7 +444,25 @@ GET /api/requests?status=pending&urgency=high
         "city": "Paris",
         "postalCode": "75008"
       },
-      "status": "pending",
+      "status": "assigned",
+      "assignedWorkerId": "worker-1",
+      "assignee": {
+        "id": "worker-1",
+        "name": "Jean Dubois",
+        "specialty": "Électricité",
+        "rating": 4.8,
+        "jobs": 127,
+        "type": "artisan",
+        "location": "Paris et région",
+        "description": "Électricien qualifié avec 15 ans d'expérience",
+        "experience": "120+ ans",
+        "certifications": ["Qualification électricien", "Assurance décennale"],
+        "availability": "Disponible",
+        "responseTime": "Répond en moyenne en 2h",
+        "completedProjects": 127,
+        "specialties": ["installation électrique", "dépannage", "mise aux normes"],
+        "status": "available"
+      },
       "createdAt": "2024-03-18T11:20:00Z",
       "updatedAt": "2024-03-18T11:20:00Z"
     }

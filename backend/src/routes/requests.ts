@@ -238,10 +238,28 @@ router.get('/', async (req: Request, res: Response) => {
         r.created_at,
         r.updated_at,
         u.first_name as client_first_name,
-        u.last_name as client_last_name
+        u.last_name as client_last_name,
+        w.id as assigned_worker_id,
+        w.first_name as worker_first_name,
+        w.last_name as worker_last_name,
+        w.email as worker_email,
+        w.phone as worker_phone,
+        w.avatar as worker_avatar,
+        w.description as worker_description,
+        w.skills as worker_skills,
+        w.jobs_completed as worker_experience,
+        w.rating as worker_rating,
+        w.jobs_completed as worker_review_count,
+        w.hourly_rate as worker_hourly_rate,
+        w.worker_status as worker_availability,
+        w.certifications as worker_certifications,
+        w.portfolio_urls as worker_portfolio,
+        w.jobs_completed as worker_completed_projects,
+        w.location as worker_location
       FROM requests r
       LEFT JOIN categories c ON r.category_id = c.id
       LEFT JOIN users u ON r.client_id = u.id
+      LEFT JOIN users w ON r.assigned_worker_id = w.id
       WHERE 1=1
     `;
     let queryParams: any[] = [];
@@ -271,29 +289,60 @@ router.get('/', async (req: Request, res: Response) => {
     const result = await query(queryText, queryParams);
 
     // Transform database results to match frontend expectations
-    const requests = result.rows.map(row => ({
-      id: row.id,
-      title: row.title,
-      description: row.description,
-      service: row.category_name,
-      clientId: row.client_id,
-      status: row.status,
-      priority: row.priority,
-      budget: {
-        min: row.budget_min,
-        max: row.budget_max,
-        currency: 'EUR'
-      },
-      location: {
-        address: row.location,
-        coordinates: null // Not stored in current schema
-      },
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      attachments: [],
-      preferredSchedule: null, // Not in current schema
-      clientName: `${row.client_first_name} ${row.client_last_name}`
-    }));
+    const requests = result.rows.map(row => {
+      const request: any = {
+        id: row.id,
+        title: row.title,
+        description: row.description,
+        service: row.category_name,
+        clientId: row.client_id,
+        status: row.status,
+        priority: row.priority,
+        budget: {
+          min: row.budget_min,
+          max: row.budget_max,
+          currency: 'EUR'
+        },
+        location: {
+          address: row.location,
+          coordinates: null // Not stored in current schema
+        },
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        attachments: [],
+        preferredSchedule: null, // Not in current schema
+        clientName: `${row.client_first_name} ${row.client_last_name}`
+      };
+
+      // Include assignee information if request is assigned
+      if (row.assigned_worker_id && (row.status === 'assigned' || row.status === 'in_progress' || row.status === 'completed')) {
+        request.assignedWorkerId = row.assigned_worker_id;
+        request.assignee = {
+          id: row.assigned_worker_id,
+          name: `${row.worker_first_name} ${row.worker_last_name}`,
+          email: row.worker_email,
+          phone: row.worker_phone,
+          avatar: row.worker_avatar,
+          specialty: row.worker_skills?.[0] || 'Artisan',
+          rating: row.worker_rating || 0,
+          jobs: row.worker_review_count || 0,
+          type: 'individual', // Could be determined from user type
+          location: row.worker_location || 'Non spécifié',
+          description: row.worker_description,
+          experience: `${row.worker_experience || 0}+ ans`,
+          certifications: row.worker_certifications || [],
+          portfolio: row.worker_portfolio || [],
+          reviews: [], // Would need separate query
+          availability: row.worker_availability === 'available' ? 'Disponible' : 'Occupé',
+          responseTime: 'Répond en moyenne en 2h', // Default
+          completedProjects: row.worker_completed_projects || 0,
+          specialties: row.worker_skills || [],
+          status: row.worker_availability === 'available' ? 'available' : 'busy'
+        };
+      }
+
+      return request;
+    });
 
     res.json({
       data: requests,

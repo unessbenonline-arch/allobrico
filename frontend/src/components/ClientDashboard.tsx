@@ -1585,10 +1585,56 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                       <Typography variant="body2">
                         <strong>Lieu:</strong> {getLocationString(request.location)}
                       </Typography>
-                      {request.assignedWorker && (
-                        <Typography variant="body2">
-                          <strong>Assigné à:</strong> {request.assignedWorker}
-                        </Typography>
+                      {request.assignee && (
+                        <Box sx={{ mt: 1 }}>
+                          <Typography variant="body2" sx={{ mb: 1 }}>
+                            <strong>Assigné à:</strong>
+                          </Typography>
+                          <Paper
+                            sx={{
+                              p: 2,
+                              bgcolor: 'grey.50',
+                              cursor: 'pointer',
+                              '&:hover': { bgcolor: 'grey.100' }
+                            }}
+                            onClick={() => {
+                              // Open worker profile
+                              setSelectedWorker(request.assignee);
+                              setOpenProfile(true);
+                            }}
+                          >
+                            <Stack direction="row" spacing={2} alignItems="center">
+                              <Avatar
+                                src={request.assignee.avatar}
+                                sx={{ width: 40, height: 40 }}
+                              >
+                                {request.assignee.name.charAt(0)}
+                              </Avatar>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>
+                                  {request.assignee.name}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  {request.assignee.specialty}
+                                </Typography>
+                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
+                                  <Star className="fill-yellow-400 text-yellow-400" size={12} />
+                                  <Typography variant="caption">
+                                    {request.assignee.rating} ({request.assignee.jobs} jobs)
+                                  </Typography>
+                                  {request.status === 'in_progress' && (
+                                    <Chip
+                                      label="En cours"
+                                      size="small"
+                                      color="primary"
+                                      sx={{ fontSize: '0.7rem', height: 20 }}
+                                    />
+                                  )}
+                                </Stack>
+                              </Box>
+                            </Stack>
+                          </Paper>
+                        </Box>
                       )}
                     </Box>
                     <Stack direction="row" spacing={1}>
