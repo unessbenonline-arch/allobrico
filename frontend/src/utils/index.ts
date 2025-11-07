@@ -309,7 +309,7 @@ export const logError = (error: unknown, context?: string): void => {
 };
 
 // Simple API helper
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5001/api';
+const API_BASE = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
 console.log('API_BASE:', API_BASE);
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';

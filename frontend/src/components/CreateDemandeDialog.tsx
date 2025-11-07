@@ -55,8 +55,40 @@ import {
   Paintbrush,
   Hammer,
   Settings,
+  Palette,
+  Leaf,
+  Snowflake,
+  Flame,
+  MoreHorizontal,
 } from 'lucide-react';
 import { api } from '../utils';
+// New reusable category select component extracted for clarity
+// (You asked to recreate from scratch: this isolates category logic and robust icon rendering)
+
+// Robust icon renderer supporting lucide names and legacy emoji values
+const renderCategoryIcon = (raw: string) => {
+  if (!raw) return <Settings size={18} />;
+  const iconName = raw.trim();
+  // If already an emoji (length <=3 and not alphanumeric) just render
+  if (/[^\w]/.test(iconName) && iconName.length <= 3) {
+    return <span style={{ fontSize: 18 }}>{iconName}</span>;
+  }
+  switch (iconName) {
+    case 'Wrench': return <Wrench size={18} />;
+    case 'Zap': return <Zap size={18} />;
+    case 'Palette': return <Palette size={18} />;
+    case 'Hammer': return <Hammer size={18} />;
+    case 'Leaf': return <Leaf size={18} />;
+    case 'Snowflake': return <Snowflake size={18} />;
+    case 'Flame': return <Flame size={18} />;
+    case 'Home': return <Home size={18} />;
+    case 'MoreHorizontal': return <MoreHorizontal size={18} />;
+    default: return <Settings size={18} />;
+  }
+};
+
+// Legacy exported helper kept (in case other components import it) now delegates
+export const getCategoryIcon = (iconName: string) => renderCategoryIcon(iconName);
 
 interface CreateDemandeDialogProps {
   open: boolean;
@@ -68,8 +100,13 @@ interface CreateDemandeDialogProps {
 interface Category {
   id: string;
   name: string;
+  description?: string;
   icon: string;
   is_active: boolean;
+  // Optional fields coming from future backend enhancement
+  color?: string;
+  slug?: string;
+  popular?: boolean;
 }
 
 interface LocationOption {
@@ -142,48 +179,68 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
     }
   }, [open]);
 
-  // Scroll detection for stepper
+  // Scroll detection for stepper using Intersection Observer
   useEffect(() => {
     if (!open) return;
 
-    const dialogContent = document.querySelector('[role="dialog"] .MuiDialogContent-root');
-    if (!dialogContent) return;
+    const sections = [
+      'step-basic-info',
+      'step-project-details',
+      'step-budget-planning',
+      'step-specific-requirements'
+    ];
 
-    const handleScroll = () => {
-      const sections = [
-        'step-basic-info',
-        'step-project-details', 
-        'step-budget-planning',
-        'step-specific-requirements'
-      ];
+    const observers: IntersectionObserver[] = [];
 
-      const scrollPosition = dialogContent.scrollTop + 200; // Offset for header
-
-      for (let i = sections.length - 1; i >= 0; i--) {
-        const element = document.getElementById(sections[i]);
-        if (element) {
-          const htmlElement = element as HTMLElement;
-          const elementTop = htmlElement.offsetTop - (dialogContent as HTMLElement).offsetTop;
-          if (elementTop <= scrollPosition) {
-            if (activeStep !== i) {
-              console.log(`Stepper: Switching to step ${i} (${sections[i]})`);
-              setActiveStep(i);
-            }
-            break;
-          }
-        }
+    // Use setTimeout to ensure DOM is fully rendered
+    const setupObservers = () => {
+      const dialogContent = document.querySelector('.MuiDialogContent-root');
+      if (!dialogContent) {
+        console.log('Stepper: Dialog content not found, retrying...');
+        setTimeout(setupObservers, 100);
+        return;
       }
+
+      sections.forEach((sectionId, index) => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+          console.log(`Stepper: Setting up observer for ${sectionId}`);
+          const observer = new IntersectionObserver(
+            (entries) => {
+              entries.forEach((entry) => {
+                if (entry.isIntersecting && entry.intersectionRatio > 0.3) {
+                  // Element is at least 30% visible
+                  console.log(`Stepper: Section ${sectionId} is now visible (${entry.intersectionRatio})`);
+                  setActiveStep(index);
+                }
+              });
+            },
+            {
+              root: dialogContent,
+              rootMargin: '-80px 0px -50px 0px', // Trigger when element is near the top
+              threshold: [0.1, 0.3, 0.5, 0.7, 1.0]
+            }
+          );
+
+          observer.observe(element);
+          observers.push(observer);
+        } else {
+          console.log(`Stepper: Element ${sectionId} not found`);
+        }
+      });
     };
 
-    dialogContent.addEventListener('scroll', handleScroll);
-    return () => dialogContent.removeEventListener('scroll', handleScroll);
-  }, [open]);
+    setTimeout(setupObservers, 200);
 
-  const loadCategories = async () => {
+    return () => {
+      observers.forEach(observer => observer.disconnect());
+    };
+  }, [open]);  const loadCategories = async () => {
     try {
       setLoadingCategories(true);
-      const response = await api.get('/categories') as any;
-      const categoriesData = response.data || [];
+  const response = await api.get('/categories') as any;
+  // Support both {data:[...]} and direct array
+  const categoriesData = Array.isArray(response.data) ? response.data : (response.data?.data || []);
       setCategories(categoriesData);
       
       // Set default category (Plomberie) if available
@@ -403,18 +460,26 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
             px: 3
           }}>
             <Stepper activeStep={activeStep} alternativeLabel>
-              <Step>
-                <StepLabel>Informations générales</StepLabel>
-              </Step>
-              <Step>
-                <StepLabel>Détails du projet</StepLabel>
-              </Step>
-              <Step>
-                <StepLabel>Budget & Planning</StepLabel>
-              </Step>
-              <Step>
-                <StepLabel>Exigences spécifiques</StepLabel>
-              </Step>
+              {[
+                { label: 'Informations générales', id: 'step-basic-info' },
+                { label: 'Détails du projet', id: 'step-project-details' },
+                { label: 'Budget & Planning', id: 'step-budget-planning' },
+                { label: 'Exigences spécifiques', id: 'step-specific-requirements' }
+              ].map((step, index) => (
+                <Step key={step.id}>
+                  <StepLabel
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => {
+                      const element = document.getElementById(step.id);
+                      if (element) {
+                        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                      }
+                    }}
+                  >
+                    {step.label}
+                  </StepLabel>
+                </Step>
+              ))}
             </Stepper>
           </Box>
 
@@ -461,20 +526,78 @@ const CreateDemandeDialog: React.FC<CreateDemandeDialogProps> = ({
                         value={formData.categoryId}
                         onChange={(e) => handleInputChange('categoryId', e.target.value)}
                         disabled={loadingCategories}
+                        renderValue={(selected) => {
+                          if (!selected) return 'Sélectionner';
+                          const cat = categories.find(c => c.id === selected);
+                          if (!cat) return 'Sélectionner';
+                          return (
+                            <Stack direction="row" alignItems="center" spacing={1}>
+                              <Box sx={{
+                                width: 30,
+                                height: 30,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                bgcolor: (theme) => cat.color ? cat.color : theme.palette.action.hover,
+                              }}>
+                                {renderCategoryIcon(cat.icon)}
+                              </Box>
+                              <Box>
+                                <Typography variant="body2" fontWeight={600}>{cat.name}</Typography>
+                                {cat.description && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                                    {cat.description.length > 40 ? cat.description.slice(0, 37) + '…' : cat.description}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Stack>
+                          );
+                        }}
+                        MenuProps={{
+                          PaperProps: {
+                            style: { maxHeight: 360 }
+                          }
+                        }}
                       >
-                        {loadingCategories ? (
+                        {loadingCategories && (
                           <MenuItem disabled>
                             <CircularProgress size={20} sx={{ mr: 1 }} />
                             Chargement...
                           </MenuItem>
-                        ) : (
-                          categories
-                            .filter(cat => cat.is_active)
-                            .map((category) => (
-                              <MenuItem key={category.id} value={category.id}>
-                                {category.name}
-                              </MenuItem>
-                            ))
+                        )}
+                        {!loadingCategories && categories.filter(cat => cat.is_active).map(category => (
+                          <MenuItem
+                            key={category.id}
+                            value={category.id}
+                            sx={{ alignItems: 'flex-start' }}
+                          >
+                            <Stack direction="row" spacing={1} alignItems="flex-start" width="100%">
+                              <Box sx={{
+                                width: 32,
+                                height: 32,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                borderRadius: '50%',
+                                bgcolor: (theme) => category.color ? category.color : theme.palette.action.hover,
+                                flexShrink: 0,
+                              }}>
+                                {renderCategoryIcon(category.icon)}
+                              </Box>
+                              <Box sx={{ minWidth: 0 }}>
+                                <Typography variant="body2" fontWeight={600} noWrap>{category.name}</Typography>
+                                {category.description && (
+                                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }} noWrap>
+                                    {category.description}
+                                  </Typography>
+                                )}
+                              </Box>
+                            </Stack>
+                          </MenuItem>
+                        ))}
+                        {!loadingCategories && categories.filter(cat => cat.is_active).length === 0 && (
+                          <MenuItem disabled>Aucune catégorie active</MenuItem>
                         )}
                       </Select>
                     </FormControl>

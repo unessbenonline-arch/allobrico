@@ -166,16 +166,22 @@ function AppContent() {
     );
   }
 
+  // Add stable demo IDs so dashboards relying on userProfile.id can query backend endpoints.
+  // In a real implementation this would come from the authenticated user object.
   const userProfile = {
+    id: userRole === 'client' ? 'client1' :
+    userRole === 'worker' ? 'worker1' :
+    userRole === 'business' ? 'business1' :
+    'admin1',
     name: userRole === 'client' ? 'Marie Dupont' : 
-          userRole === 'worker' ? 'Pierre Martin' :
-          userRole === 'business' ? 'TechPro Services' :
-          'Admin AlloBrico',
+      userRole === 'worker' ? 'Pierre Martin' :
+      userRole === 'business' ? 'TechPro Services' :
+      'Admin AlloBrico',
     email: email || 'marie.dupont@email.fr',
     avatar: userRole === 'client' ? 'MD' : 
-            userRole === 'worker' ? 'PM' :
-            userRole === 'business' ? 'TP' :
-            'AA'
+    userRole === 'worker' ? 'PM' :
+    userRole === 'business' ? 'TP' :
+    'AA'
   };
 
   return (

@@ -14,6 +14,16 @@ import {
   Award,
   CheckCircle,
   Clock,
+  Wrench,
+  Zap,
+  Palette,
+  Hammer,
+  Leaf,
+  Snowflake,
+  Flame,
+  Home,
+  MoreHorizontal,
+  Settings,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, LayersControl, useMapEvents } from 'react-leaflet';
 import L, { Icon } from 'leaflet';
@@ -67,6 +77,32 @@ interface ClientDashboardProps {
   isUrgent: boolean;
   setIsUrgent: React.Dispatch<React.SetStateAction<boolean>>;
 }
+
+// Icon mapping function for categories
+const getCategoryIconComponent = (iconName: string) => {
+  switch (iconName) {
+    case "Wrench":
+      return <Wrench size={16} />;
+    case "Zap":
+      return <Zap size={16} />;
+    case "Palette":
+      return <Palette size={16} />;
+    case "Hammer":
+      return <Hammer size={16} />;
+    case "Leaf":
+      return <Leaf size={16} />;
+    case "Snowflake":
+      return <Snowflake size={16} />;
+    case "Flame":
+      return <Flame size={16} />;
+    case "Home":
+      return <Home size={16} />;
+    case "MoreHorizontal":
+      return <MoreHorizontal size={16} />;
+    default:
+      return <Settings size={16} />;
+  }
+};
 
 // Custom marker component with category icons
 const CustomMarker: React.FC<{
@@ -157,7 +193,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const mapRef = React.useRef<L.Map | null>(null);
 
   // Tab state for switching between finding workers and managing requests
-  const [activeTab, setActiveTab] = React.useState(0); // 0 = Find workers, 1 = My requests
+  const [activeTab, setActiveTab] = React.useState(1); // 0 = Find workers, 1 = My requests
   const [selectedRequest, setSelectedRequest] = React.useState<any>(null);
   const [showOffersModal, setShowOffersModal] = React.useState(false);
   const [requestOffers, setRequestOffers] = React.useState<any[]>([]);
@@ -498,7 +534,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           setShowRequestForm(false);
           fetchRequests(); // Refresh the requests list
         }}
-        clientId="client-anonyme" // TODO: Use actual client ID from auth
+        clientId="ba907e42-31e2-4d48-a108-2f07fe51fd19" // Marie Dubois - has requests
       />
 
       {/* Worker profile dialog */}
@@ -1435,9 +1471,22 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
       {/* My Requests Tab */}
       {activeTab === 1 && (
         <Box>
-          <Typography variant="h6" fontWeight={700} sx={{ mb: 3 }}>
-            Mes demandes de service
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+            <Typography variant="h6" fontWeight={700}>
+              Mes demandes de service
+            </Typography>
+            <Button
+              variant="contained"
+              startIcon={<Plus size={16} />}
+              onClick={() => {
+                // Stay on current tab; just open dialog
+                setShowRequestForm(true);
+              }}
+              size="small"
+            >
+              Nouvelle demande
+            </Button>
+          </Box>
           
           {clientRequests.length === 0 ? (
             <Paper sx={{ p: 4, textAlign: 'center' }}>
@@ -1450,7 +1499,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
               <Button
                 variant="contained"
                 startIcon={<Plus size={16} />}
-                onClick={() => setActiveTab(0)}
+                onClick={() => setShowRequestForm(true)}
               >
                 Créer ma première demande
               </Button>
@@ -1470,11 +1519,10 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                         {request.title}
                       </Typography>
                       <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                        <Chip
-                          label={request.service}
-                          variant="outlined"
-                          size="small"
-                        />
+                        <Box sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5, px: 1, py: 0.5, border: '1px solid', borderColor: 'divider', borderRadius: 1, bgcolor: 'background.paper' }}>
+                          {request.categoryIcon ? getCategoryIconComponent(request.categoryIcon) : null}
+                          <Typography variant="body2" sx={{ fontSize: '0.75rem' }}>{request.service}</Typography>
+                        </Box>
                         {request.urgent && (
                           <Chip
                             label="Urgent"

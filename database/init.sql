@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT different_participants CHECK (participant_1 != participant_2),
-    CONSTRAINT unique_conversation_participants UNIQUE(participant_1, participant_2, COALESCE(related_request_id, '00000000-0000-0000-0000-000000000000'::uuid))
+    CONSTRAINT unique_conversation_participants UNIQUE(participant_1, participant_2, related_request_id)
 );
 
 -- Messages table (for chat)

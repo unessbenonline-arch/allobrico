@@ -66,7 +66,7 @@ import {
   FormControlLabel,
   Checkbox,
 } from '@mui/material';
-import { api, projectService, workerService, getLocationString } from '../utils';
+import { api, projectService, workerService, requestService, getLocationString } from '../utils';
 import Chat from './Chat';
 
 interface WorkerDashboardProps {
@@ -265,48 +265,46 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [userProfile.id]);
 
   const loadDashboardData = async () => {
     setLoading(true);
     try {
       // Fetch available requests for workers to view
-      const availableRequestsResponse = await api.get('/requests?status=open&limit=20');
-      const availableRequestsData = (availableRequestsResponse as any).data?.data || [];
+  // Fetch open requests using requestService (consistent with other stores)
+  const availableRequestsResponse = await requestService.getRequests({ status: 'open', limit: 20 }) as any;
+  const availableRequestsData = availableRequestsResponse?.data || availableRequestsResponse?.data?.data || availableRequestsResponse || [];
 
       // Transform available requests
       const transformedAvailableRequests = availableRequestsData.map((request: any) => ({
         id: request.id,
         type: request.service || request.category_name || 'Service',
         title: request.title,
-        location: typeof request.location === 'string' ? request.location : request.location?.address || 'N/A',
-        urgency: request.urgency || request.priority === 'urgent' ? 'urgent' : request.priority === 'high' ? 'normal' : 'planned',
-        distance: 'N/A', // Would need geolocation calculation
-        budget: request.budget ? 
-          `${request.budget.min || 0}-${request.budget.max || 0}${request.budget.currency || '€'}` : 
-          'N/A',
+        location: request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location?.address || request.location || 'N/A',
+        urgency: request.urgency === 'urgent' || request.priority === 'urgent' ? 'urgent' : (request.priority === 'high' ? 'normal' : 'planned'),
+        distance: 'N/A', // Placeholder until geo calc implemented
+        budget: request.budget ? `${request.budget.min || 0}-${request.budget.max || 0}${request.budget.currency || '€'}` : (request.budget_min !== undefined ? `${request.budget_min || 0}-${request.budget_max || 0}${request.currency || '€'}` : 'N/A'),
         time: request.createdAt ? `Il y a ${Math.floor((Date.now() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60))}h` : 'N/A',
         client: request.clientName || 'Client',
         offered: false,
-        // Rich data fields
         description: request.description,
         subcategory: request.subcategory,
-        complexity: request.projectDetails?.complexity || 3,
-        scope: request.projectDetails?.scope || 'small',
-        estimatedDuration: request.scheduling?.estimatedDuration,
-        durationUnit: request.scheduling?.durationUnit || 'hours',
-        preferredStartDate: request.scheduling?.preferredStartDate,
-        preferredEndDate: request.scheduling?.preferredEndDate,
-        isRecurring: request.projectDetails?.isRecurring || false,
-        recurringFrequency: request.projectDetails?.recurringFrequency,
-        requiredCertifications: request.requirements?.certifications || [],
-        specialInstructions: request.requirements?.specialInstructions,
-        locationType: request.location?.type || 'home',
-        accessType: request.projectDetails?.access || 'normal',
-        materialsProvidedBy: request.projectDetails?.materials || 'client',
-        contactPreference: request.requirements?.contactPreference || 'both',
-        budgetType: request.budget?.type || 'fixed',
-        technicalRequirements: request.requirements?.technical
+        complexity: request.projectDetails?.complexity || request.complexity || 3,
+        scope: request.projectDetails?.scope || request.scope || 'small',
+        estimatedDuration: request.scheduling?.estimatedDuration || request.estimatedDuration,
+        durationUnit: request.scheduling?.durationUnit || request.durationUnit || 'hours',
+        preferredStartDate: request.scheduling?.preferredStartDate || request.preferredStartDate,
+        preferredEndDate: request.scheduling?.preferredEndDate || request.preferredEndDate,
+        isRecurring: request.projectDetails?.isRecurring || request.isRecurring || false,
+        recurringFrequency: request.projectDetails?.recurringFrequency || request.recurringFrequency,
+        requiredCertifications: request.requirements?.certifications || request.requiredCertifications || [],
+        specialInstructions: request.requirements?.specialInstructions || request.specialInstructions,
+        locationType: request.location?.type || request.locationType || 'home',
+        accessType: request.projectDetails?.access || request.access || 'normal',
+        materialsProvidedBy: request.projectDetails?.materials || request.materials || 'client',
+        contactPreference: request.requirements?.contactPreference || request.contactPreference || 'both',
+        budgetType: request.budget?.type || request.budget_type || 'fixed',
+        technicalRequirements: request.requirements?.technical || request.requirements
       }));
 
       setAvailableRequests(transformedAvailableRequests);
@@ -336,14 +334,14 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
       // Transform requests to match PendingRequest structure
       const transformedRequests = requests.map((request: any) => ({
         id: request.id,
-        type: request.category || request.service,
+        type: request.service || request.category || request.category_name || 'Service',
         title: request.title,
-        location: typeof request.location === 'string' ? request.location : request.location.address,
-        urgency: request.isUrgent || request.priority === 'urgent' ? 'urgent' : 'normal',
+        location: request.location?.address || request.location || 'N/A',
+        urgency: request.urgency === 'urgent' || request.priority === 'urgent' ? 'urgent' : (request.priority === 'high' ? 'normal' : 'planned'),
         distance: request.distance || 'N/A',
-        budget: request.budget ? `${request.budget.min}-${request.budget.max}€` : 'N/A',
+        budget: request.budget ? `${request.budget.min}-${request.budget.max}€` : (request.budget_min !== undefined ? `${request.budget_min}-${request.budget_max}€` : 'N/A'),
         time: request.createdAt ? `Il y a ${Math.floor((Date.now() - new Date(request.createdAt).getTime()) / (1000 * 60 * 60))}h` : 'N/A',
-        client: request.clientId || 'Client',
+        client: request.clientName || request.clientId || 'Client',
         offered: false
       }));
 

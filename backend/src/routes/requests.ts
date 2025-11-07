@@ -231,6 +231,7 @@ router.get('/', async (req: Request, res: Response) => {
         r.description,
         r.subcategory,
         c.name as category_name,
+        c.icon as category_icon,
         r.status,
         r.priority,
         r.urgency,
@@ -317,6 +318,7 @@ router.get('/', async (req: Request, res: Response) => {
         title: row.title,
         description: row.description,
         service: row.category_name,
+        categoryIcon: row.category_icon,
         subcategory: row.subcategory,
         clientId: row.client_id,
         status: row.status,
@@ -481,6 +483,12 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    // Parse and validate data types
+    const parsedEstimatedDuration = estimatedDuration ? parseInt(estimatedDuration.toString(), 10) : null;
+    const parsedComplexity = complexity ? parseInt(complexity.toString(), 10) : 3;
+    const parsedPreferredStartDate = preferredStartDate && preferredStartDate.trim() !== '' ? preferredStartDate : null;
+    const parsedPreferredEndDate = preferredEndDate && preferredEndDate.trim() !== '' ? preferredEndDate : null;
+
     // Insert new request into database
     const insertQuery = `
       INSERT INTO requests (
@@ -515,7 +523,7 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
         access_type,
         attachments,
         status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, 'open')
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27, $28, $29, $30, $31)
       RETURNING id, title, description, category_id, subcategory, client_id, status, priority, urgency,
                 budget_min, budget_max, budget_type, currency, location, location_details, location_type,
                 preferred_schedule, preferred_start_date, preferred_end_date, estimated_duration, duration_unit,
@@ -540,21 +548,22 @@ router.post('/', async (req: Request, res: Response): Promise<void> => {
       locationDetails,
       locationType,
       preferredSchedule,
-      preferredStartDate,
-      preferredEndDate,
-      estimatedDuration,
+      parsedPreferredStartDate,
+      parsedPreferredEndDate,
+      parsedEstimatedDuration,
       durationUnit,
       requirements,
       specialInstructions,
       contactPreference,
-      complexity,
+      parsedComplexity,
       scope,
       recurring,
       recurring ? recurringFrequency : null,
       certifications,
       materials,
       access,
-      attachments
+      attachments,
+      'open'
     ];
 
     const result = await query(insertQuery, values);
