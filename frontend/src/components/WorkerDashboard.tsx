@@ -192,7 +192,8 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   const [progressDialog, setProgressDialog] = useState({ open: false, project: null as Project | null });
   const [projectDialog, setProjectDialog] = useState({ open: false, project: null as Project | null });
   const [portfolioDialog, setPortfolioDialog] = useState({ open: false, item: null as PortfolioItem | null });
-  const [offerDialog, setOfferDialog] = useState({ open: false, request: null as any });
+  const [offerDialog, setOfferDialog] = useState({ open: false, request: null as any, existingOffer: null as any });
+  const [updateOfferDialog, setUpdateOfferDialog] = useState({ open: false, request: null as any, existingOffer: null as any });
   const [requestDetailDialog, setRequestDetailDialog] = useState({ open: false, request: null as any });
 
   // Form states
@@ -369,17 +370,32 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 
   const handleOffer = async (request: any) => {
     try {
+      console.log('Checking offers for request:', request.id);
+      console.log('Current user ID:', userProfile.id);
+      
       // Check if worker has already submitted an offer for this request
       const offersResponse = await api.get(`/requests/${request.id}/offers`) as any;
-      const existingOffers = offersResponse.data?.offers || [];
-      const hasExistingOffer = existingOffers.some((offer: any) => offer.workerId === userProfile.id);
+      console.log('Offers response:', offersResponse);
+      
+      const existingOffers = offersResponse.offers || [];
+      console.log('Existing offers:', existingOffers);
+      
+      const existingOffer = existingOffers.find((offer: any) => {
+        console.log('Comparing offer.workerId:', offer.workerId, 'with userProfile.id:', userProfile.id);
+        return offer.workerId === userProfile.id;
+      });
+      
+      console.log('Found existing offer:', existingOffer);
 
-      if (hasExistingOffer) {
-        setSnackbar({ open: true, message: 'Vous avez déjà soumis une offre pour cette demande', severity: 'warning' });
+      if (existingOffer) {
+        // Show confirmation dialog to update existing offer
+        console.log('Showing update offer dialog');
+        setUpdateOfferDialog({ open: true, request, existingOffer });
         return;
       }
 
-      setOfferDialog({ open: true, request });
+      console.log('No existing offer found, showing new offer dialog');
+      setOfferDialog({ open: true, request, existingOffer: null });
       setOfferForm({
         price: '',
         description: '',
@@ -397,6 +413,32 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
       console.warn('Could not check existing offers, proceeding anyway:', error);
       // Proceed without checking to avoid blocking the user
     }
+  };
+
+  const handleConfirmUpdateOffer = () => {
+    const { request, existingOffer } = updateOfferDialog;
+    
+    // Pre-populate form with existing offer data
+    setOfferForm({
+      price: existingOffer.price?.toString() || '',
+      description: existingOffer.description || '',
+      timeline: existingOffer.timeline || '',
+      availability: existingOffer.availability || '',
+      estimatedHours: '',
+      materialsIncluded: 'client',
+      notes: '',
+      warranty: '',
+      paymentTerms: 'upon_completion',
+      startDate: '',
+      endDate: '',
+    });
+    
+    setUpdateOfferDialog({ open: false, request: null, existingOffer: null });
+    setOfferDialog({ open: true, request, existingOffer });
+  };
+
+  const handleCancelUpdateOffer = () => {
+    setUpdateOfferDialog({ open: false, request: null, existingOffer: null });
   };
 
   const handleSubmitOffer = async () => {
@@ -425,28 +467,39 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
     }
 
     try {
-      await api.post(`/requests/${offerDialog.request.id}/offers`, {
-        workerId: userProfile.id,
-        price: price,
-        description: offerForm.description,
-        timeline: offerForm.timeline,
-        availability: offerForm.availability,
-        // Note: Additional fields will be supported in future backend updates
-        // estimatedHours: offerForm.estimatedHours,
-        // materialsIncluded: offerForm.materialsIncluded,
-        // notes: offerForm.notes,
-        // warranty: offerForm.warranty,
-        // paymentTerms: offerForm.paymentTerms,
-        // startDate: offerForm.startDate,
-        // endDate: offerForm.endDate,
-      });
+      if (offerDialog.existingOffer) {
+        // Update existing offer
+        await api.put(`/requests/${offerDialog.request.id}/offers/${offerDialog.existingOffer.id}`, {
+          price: price,
+          description: offerForm.description,
+          timeline: offerForm.timeline,
+          availability: offerForm.availability,
+        });
+        setSnackbar({ open: true, message: 'Offre modifiée avec succès', severity: 'success' });
+      } else {
+        // Create new offer
+        await api.post(`/requests/${offerDialog.request.id}/offers`, {
+          workerId: userProfile.id,
+          price: price,
+          description: offerForm.description,
+          timeline: offerForm.timeline,
+          availability: offerForm.availability,
+          // Note: Additional fields will be supported in future backend updates
+          // estimatedHours: offerForm.estimatedHours,
+          // materialsIncluded: offerForm.materialsIncluded,
+          // notes: offerForm.notes,
+          // warranty: offerForm.warranty,
+          // paymentTerms: offerForm.paymentTerms,
+          // startDate: offerForm.startDate,
+          // endDate: offerForm.endDate,
+        });
+        setPendingRequests((prev) =>
+          prev.map((r) => (r.id === offerDialog.request.id ? { ...r, offered: true } : r))
+        );
+        setSnackbar({ open: true, message: 'Offre envoyée avec succès', severity: 'success' });
+      }
 
-      setPendingRequests((prev) =>
-        prev.map((r) => (r.id === offerDialog.request.id ? { ...r, offered: true } : r))
-      );
-
-      setOfferDialog({ open: false, request: null });
-      setSnackbar({ open: true, message: 'Offre envoyée avec succès', severity: 'success' });
+      setOfferDialog({ open: false, request: null, existingOffer: null });
     } catch (error: any) {
       console.error('Error submitting offer:', error);
       const errorMessage = error?.response?.data?.error || error?.message || 'Erreur lors de l\'envoi de l\'offre';
@@ -1483,15 +1536,39 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
         </DialogActions>
       </Dialog>
 
+      {/* Update Offer Confirmation Dialog */}
+      <Dialog
+        open={updateOfferDialog.open}
+        onClose={handleCancelUpdateOffer}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Offre existante détectée</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Vous avez déjà soumis une offre pour cette demande. Souhaitez-vous la modifier ?
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+            Votre offre actuelle n'a pas encore été acceptée ou rejetée par le client.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCancelUpdateOffer}>Annuler</Button>
+          <Button onClick={handleConfirmUpdateOffer} variant="contained">
+            Modifier mon offre
+          </Button>
+        </DialogActions>
+      </Dialog>
+
       {/* Offer Dialog */}
       <Dialog
         open={offerDialog.open}
-        onClose={() => setOfferDialog({ open: false, request: null })}
+        onClose={() => setOfferDialog({ open: false, request: null, existingOffer: null })}
         maxWidth="md"
         fullWidth
       >
         <DialogTitle>
-          Faire une offre - {offerDialog.request?.title}
+          {offerDialog.existingOffer ? 'Modifier votre offre' : 'Faire une offre'} - {offerDialog.request?.title}
         </DialogTitle>
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
@@ -1720,7 +1797,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOfferDialog({ open: false, request: null })}>
+          <Button onClick={() => setOfferDialog({ open: false, request: null, existingOffer: null })}>
             Annuler
           </Button>
           <Button
@@ -1728,7 +1805,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
             onClick={handleSubmitOffer}
             disabled={!offerForm.price || parseFloat(offerForm.price) <= 0 || !offerForm.description.trim() || !offerForm.timeline.trim() || !offerForm.availability.trim()}
           >
-            Envoyer l'offre
+            {offerDialog.existingOffer ? 'Modifier l\'offre' : 'Envoyer l\'offre'}
           </Button>
         </DialogActions>
       </Dialog>

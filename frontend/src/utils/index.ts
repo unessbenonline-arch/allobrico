@@ -467,6 +467,9 @@ export const adminService = {
     return api.get(`/admin/requests${queryString}`);
   },
   getRequestById: (id: number) => api.get(`/admin/requests/${id}`),
+  updateRequest: (id: number, requestData: any) =>
+    api.put(`/admin/requests/${id}`, requestData),
+  deleteRequest: (id: number) => api.delete(`/admin/requests/${id}`),
   updateRequestStatus: (id: number, status: string, notes?: string) =>
     api.put(`/admin/requests/${id}/status`, { status, notes }),
   assignRequest: (id: number, workerId: number, notes?: string) =>

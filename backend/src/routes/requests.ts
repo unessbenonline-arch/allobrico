@@ -889,9 +889,10 @@ router.post('/:id/offers', async (req: Request, res: Response) => {
       const requestInfo = await query('SELECT client_id, title FROM requests WHERE id = $1', [id]);
       if (requestInfo.rows.length) {
         const { client_id: clientId, title } = requestInfo.rows[0];
-        await query(
+        const notificationResult = await query(
           `INSERT INTO notifications (user_id, type, title, message, payload)
-           VALUES ($1, $2, $3, $4, $5)`,
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, type, title, message, payload, is_read, created_at`,
           [
             clientId,
             'offer.new',
@@ -900,6 +901,15 @@ router.post('/:id/offers', async (req: Request, res: Response) => {
             JSON.stringify({ requestId: id, offerId: offer.id, price: offer.price, workerId: offer.worker_id })
           ]
         );
+
+        // Emit real-time notification via WebSocket
+        const io = (global as any).io;
+        if (io) {
+          io.to(`user_${clientId}`).emit('notification', {
+            notification: notificationResult.rows[0]
+          });
+          console.log(`Real-time notification sent to user ${clientId}`);
+        }
       }
     } catch (notifErr) {
       console.warn('Failed to insert notification:', notifErr);
@@ -1080,6 +1090,121 @@ router.put('/:requestId/offers/:offerId/status', async (req: Request, res: Respo
     });
   } catch (error) {
     console.error('Error updating offer status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/requests/{requestId}/offers/{offerId}:
+ *   put:
+ *     summary: Update an offer
+ *     tags: [Requests]
+ *     parameters:
+ *       - in: path
+ *         name: requestId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: offerId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               price:
+ *                 type: number
+ *               description:
+ *                 type: string
+ *               timeline:
+ *                 type: string
+ *               availability:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Offer updated successfully
+ */
+router.put('/:requestId/offers/:offerId', async (req: Request, res: Response) => {
+  try {
+    const { requestId, offerId } = req.params;
+    const { price, description, timeline, availability } = req.body;
+    const userId = (req.session as any)?.userId;
+
+    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+    // Validate required fields
+    if (price !== undefined && (isNaN(Number(price)) || Number(price) <= 0)) {
+      return res.status(400).json({ error: 'Price must be a valid number greater than 0' });
+    }
+
+    // Check if offer exists and belongs to the current user
+    const offerCheck = await query(
+      'SELECT id, worker_id, status FROM offers WHERE id = $1 AND request_id = $2',
+      [offerId, requestId]
+    );
+    if (offerCheck.rows.length === 0) {
+      return res.status(404).json({ error: 'Offer not found' });
+    }
+
+    const offer = offerCheck.rows[0];
+    if (offer.worker_id !== userId) {
+      return res.status(403).json({ error: 'You can only update your own offers' });
+    }
+
+    // Only allow updating pending offers
+    if (offer.status !== 'pending') {
+      return res.status(400).json({ error: 'Can only update pending offers' });
+    }
+
+    // Update offer
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
+
+    if (price !== undefined) {
+      updateFields.push(`price = $${paramCount++}`);
+      updateValues.push(Number(price));
+    }
+    if (description !== undefined) {
+      updateFields.push(`description = $${paramCount++}`);
+      updateValues.push(description);
+    }
+    if (timeline !== undefined) {
+      updateFields.push(`timeline = $${paramCount++}`);
+      updateValues.push(timeline);
+    }
+    if (availability !== undefined) {
+      updateFields.push(`availability = $${paramCount++}`);
+      updateValues.push(availability);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateValues.push(offerId);
+
+    const result = await query(
+      `UPDATE offers SET ${updateFields.join(', ')} WHERE id = $${paramCount}
+       RETURNING id, request_id, worker_id, price, description, timeline, availability, status, created_at, updated_at`,
+      updateValues
+    );
+
+    const updatedOffer = result.rows[0];
+
+    return res.json({
+      message: 'Offer updated successfully',
+      offer: updatedOffer
+    });
+  } catch (error) {
+    console.error('Error updating offer:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

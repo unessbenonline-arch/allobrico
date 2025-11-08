@@ -9,11 +9,12 @@ import CertificationPage from './components/CertificationPage';
 import Logo from './components/Logo';
 import Chat from './components/Chat';
 import { Bell, LogOut, Moon, Sun, Check, X, GraduationCap, MessageCircle, LayoutDashboard } from 'lucide-react';
-import { AppBar, Toolbar, Box, IconButton, Typography, Avatar, Container, Badge, Paper, useTheme as useMuiTheme, Popover, List, ListItem, ListItemText, ListItemIcon, ListItemAvatar, Chip, Divider, Button } from '@mui/material';
+import { AppBar, Toolbar, Box, IconButton, Typography, Avatar, Container, Badge, Paper, useTheme as useMuiTheme, Popover, List, ListItem, ListItemText, ListItemIcon, ListItemAvatar, Chip, Divider, Button, Stack } from '@mui/material';
 import { useAuthStore, useCategoriesStore, useWorkersStore, useRequestsStore } from './stores';
 import { useAppStore } from './stores/appStore';
 import { messageService, notificationsService, formatTimeAgo } from './utils';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
+import { io, Socket } from 'socket.io-client';
 
 function AppContent() {
   const { isLoggedIn, userRole, setIsLoggedIn, setUserRole, user, hydrate, logout } = useAuthStore() as any;
@@ -27,6 +28,7 @@ function AppContent() {
   const [email, setEmail] = React.useState(() => localStorage.getItem('userEmail') || '');
   const [password, setPassword] = React.useState('');
   const [notifications, setNotifications] = React.useState<any[]>([]);
+  const [socket, setSocket] = React.useState<Socket | null>(null);
   const [messages, setMessages] = React.useState([
     { id: 1, from: 'Pierre Martin', content: 'Bonjour, je peux intervenir demain matin pour la réparation.', time: '10 min', unread: true, conversationId: 'conv1' },
     { id: 2, from: 'Sophie Leroy', content: 'Le devis pour l\'installation électrique est prêt.', time: '1h', unread: true, conversationId: 'conv2' },
@@ -38,6 +40,7 @@ function AppContent() {
   const [currentPage, setCurrentPage] = React.useState<'dashboard' | 'certification' | 'messages'>('dashboard');
   const [showChat, setShowChat] = React.useState(false);
   const [selectedWorkerId, setSelectedWorkerId] = React.useState<string | null>(null);
+  const [slideNotification, setSlideNotification] = React.useState<{ show: boolean; notification: any }>({ show: false, notification: null });
   
   // Client space state variables
   const [searchLocation, setSearchLocation] = React.useState('');
@@ -132,11 +135,65 @@ function AppContent() {
     };
   }, [isLoggedIn, loadNotifications]);
 
+  // WebSocket connection for real-time notifications
+  useEffect(() => {
+    if (!isLoggedIn || !appUser?.id) {
+      if (socket) {
+        socket.disconnect();
+        setSocket(null);
+      }
+      return;
+    }
+
+    const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:3001';
+    const socketUrl = API_BASE.replace('/api', '');
+
+    const newSocket = io(socketUrl, {
+      withCredentials: true,
+      transports: ['websocket', 'polling']
+    });
+
+    newSocket.on('connect', () => {
+      console.log('Connected to WebSocket server');
+    });
+
+    newSocket.on('notification', (data: { notification: any }) => {
+      console.log('Received real-time notification:', data.notification);
+      setNotifications(prev => [data.notification, ...prev]);
+      
+      // Show slide-in notification
+      setSlideNotification({ show: true, notification: data.notification });
+      
+      // Auto-hide after 5 seconds
+      setTimeout(() => {
+        setSlideNotification({ show: false, notification: null });
+      }, 5000);
+    });
+
+    newSocket.on('disconnect', () => {
+      console.log('Disconnected from WebSocket server');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('WebSocket connection error:', error);
+    });
+
+    setSocket(newSocket);
+
+    return () => {
+      newSocket.disconnect();
+    };
+  }, [isLoggedIn, appUser?.id]);
+
   const handleLogout = async () => {
-    await appLogout();
+    if (socket) {
+      socket.disconnect();
+      setSocket(null);
+    }
+    await logout(); // Clear useAuthStore state
+    await appLogout(); // Clear useAppStore state
     setEmail('');
     setPassword('');
-    setCurrentPage('dashboard');
     localStorage.removeItem('userEmail');
   };
 
@@ -770,6 +827,88 @@ function AppContent() {
             setSelectedWorkerId(null);
           }}
         />
+      )}
+
+      {/* Slide-in Notification */}
+      {slideNotification.show && slideNotification.notification && (
+        <Box
+          sx={{
+            position: 'fixed',
+            bottom: 20,
+            right: 20,
+            zIndex: 9999,
+            animation: 'slideIn 0.3s ease-out',
+            '@keyframes slideIn': {
+              '0%': {
+                transform: 'translateX(100%)',
+                opacity: 0,
+              },
+              '100%': {
+                transform: 'translateX(0)',
+                opacity: 1,
+              },
+            },
+          }}
+        >
+          <Paper
+            elevation={6}
+            sx={{
+              minWidth: 300,
+              maxWidth: 400,
+              p: 2,
+              bgcolor: 'background.paper',
+              borderRadius: 2,
+              border: '1px solid',
+              borderColor: 'divider',
+              cursor: 'pointer',
+              '&:hover': {
+                bgcolor: 'action.hover',
+              },
+            }}
+            onClick={() => {
+              setSlideNotification({ show: false, notification: null });
+              // Optionally open notification panel
+              // setNotificationAnchor(document.querySelector('[data-notification-bell]'));
+            }}
+          >
+            <Stack direction="row" spacing={2} alignItems="flex-start">
+              <Box
+                sx={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  bgcolor: slideNotification.notification.type === 'offer.new' ? 'primary.main' :
+                           slideNotification.notification.type === 'success' ? 'success.main' :
+                           slideNotification.notification.type === 'warning' ? 'warning.main' :
+                           slideNotification.notification.type === 'error' ? 'error.main' : 'info.main',
+                  flexShrink: 0,
+                  mt: 1,
+                }}
+              />
+              <Box sx={{ flex: 1 }}>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ mb: 0.5 }}>
+                  {slideNotification.notification.title || 'Nouvelle notification'}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {slideNotification.notification.message || slideNotification.notification.content}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                  {formatTimeAgo(slideNotification.notification.created_at)}
+                </Typography>
+              </Box>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSlideNotification({ show: false, notification: null });
+                }}
+                sx={{ flexShrink: 0 }}
+              >
+                <X size={16} />
+              </IconButton>
+            </Stack>
+          </Paper>
+        </Box>
       )}
     </Box>
   );

@@ -88,9 +88,30 @@ const Login: React.FC<LoginProps> = ({
     }
   };
 
-  const handleDemoLogin = (role: string) => {
-    setUserRole(role);
-    setIsLoggedIn(true);
+  const handleDemoLogin = async (role: string) => {
+    try {
+      setUserRole(role);
+      // Use demo credentials for actual login
+      const demoCredentials = {
+        admin: { email: 'admin@allobbrico.com', password: 'password' },
+        worker: { email: 'jean.martin@artisan.com', password: 'password' },
+        client: { email: 'marie.dupont@email.com', password: 'password' },
+        business: { email: 'martin.electricite@sarl.com', password: 'password' }
+      };
+
+      const creds = demoCredentials[role as keyof typeof demoCredentials];
+      if (creds) {
+        await appLogin(creds.email, creds.password, role as any);
+        setEmail(creds.email);
+      } else {
+        // Fallback to just setting logged in state
+        setIsLoggedIn(true);
+      }
+    } catch (error) {
+      console.error('Demo login failed:', error);
+      // Fallback to just setting logged in state
+      setIsLoggedIn(true);
+    }
   };
 
   const handleForgotPassword = () => {

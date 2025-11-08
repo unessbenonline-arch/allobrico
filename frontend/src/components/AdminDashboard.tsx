@@ -18,6 +18,9 @@ import {
   ClipboardList,
   Flag,
   Database,
+  Star,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import {
   Box,
@@ -28,6 +31,7 @@ import {
   TextField,
   InputAdornment,
   FormControl,
+  InputLabel,
   Select,
   MenuItem,
   Divider,
@@ -102,9 +106,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [showUserModal, setShowUserModal] = React.useState(false);
   const [showReportModal, setShowReportModal] = React.useState(false);
   const [showRequestModal, setShowRequestModal] = React.useState(false);
+  const [showEditRequestModal, setShowEditRequestModal] = React.useState(false);
+  const [editingRequest, setEditingRequest] = React.useState<any>(null);
   const [showSettingsModal, setShowSettingsModal] = React.useState(false);
   const [showUserManagement, setShowUserManagement] = React.useState(false);
   const [showAnalytics, setShowAnalytics] = React.useState(false);
+  const [showAssignmentModal, setShowAssignmentModal] = React.useState(false);
+  const [availableWorkers, setAvailableWorkers] = React.useState<any[]>([]);
+  const [loadingWorkers, setLoadingWorkers] = React.useState(false);
 
   // Form states
   const [userAction, setUserAction] = React.useState<'approve' | 'reject' | null>(null);
@@ -113,6 +122,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [reportStatus, setReportStatus] = React.useState('');
   const [reportNotes, setReportNotes] = React.useState('');
   const [reportResolution, setReportResolution] = React.useState('');
+
+  // Assignment state
+  const [assignmentNotes, setAssignmentNotes] = React.useState('');
+  const [selectedWorker, setSelectedWorker] = React.useState<any>(null);
 
   // Notification state
   const [snackbar, setSnackbar] = React.useState<{ open: boolean; message: string; severity: 'success' | 'error' | 'info' }>({
@@ -214,9 +227,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
       const response = await adminService.getUsers(params);
       setAllUsers((response as any).data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading users:', error);
-      showSnackbar('Erreur lors du chargement des utilisateurs', 'error');
+      const errorMessage = error?.response?.data?.error || error?.message || 'Erreur lors du chargement des utilisateurs';
+      showSnackbar(errorMessage, 'error');
     } finally {
       setLoadingUsers(false);
     }
@@ -411,9 +425,77 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
       // Reload requests
       const requestsData = await adminService.getRequests();
       setRequests((requestsData as any).data || []);
+      setShowAssignmentModal(false);
+      setSelectedWorker(null);
+      setAssignmentNotes('');
     } catch (error) {
       showSnackbar('Erreur lors de l\'assignation', 'error');
     }
+  };
+
+  const handleEditRequest = (request: any) => {
+    setEditingRequest({ ...request });
+    setShowEditRequestModal(true);
+  };
+
+  const handleUpdateRequest = async () => {
+    try {
+      await adminService.updateRequest(editingRequest.id, editingRequest);
+      showSnackbar('Demande mise à jour avec succès', 'success');
+      setShowEditRequestModal(false);
+      setEditingRequest(null);
+      // Reload requests
+      const requestsData = await adminService.getRequests();
+      setRequests((requestsData as any).data || []);
+    } catch (error) {
+      showSnackbar('Erreur lors de la mise à jour de la demande', 'error');
+    }
+  };
+
+  const handleDeleteRequest = async (requestId: number) => {
+    if (window.confirm('Êtes-vous sûr de vouloir supprimer cette demande ? Cette action est irréversible.')) {
+      try {
+        await adminService.deleteRequest(requestId);
+        showSnackbar('Demande supprimée avec succès', 'success');
+        // Reload requests
+        const requestsData = await adminService.getRequests();
+        setRequests((requestsData as any).data || []);
+      } catch (error) {
+        showSnackbar('Erreur lors de la suppression de la demande', 'error');
+      }
+    }
+  };
+
+  const loadAvailableWorkers = async (request?: any) => {
+    try {
+      setLoadingWorkers(true);
+      // Get all workers and filter by availability
+      const workersData = await adminService.getUsers({ role: 'worker', status: 'active' });
+      let availableWorkers = (workersData as any).data || [];
+
+      console.log('Total workers fetched:', availableWorkers.length);
+      console.log('Request location:', request?.location);
+
+      // For now, show all active workers regardless of location
+      // Location filtering can be added back with better logic later
+      availableWorkers = availableWorkers.filter((worker: any) =>
+        worker.workerStatus === 'available' || worker.workerStatus === 'busy'
+      );
+
+      console.log('Final available workers after status filter:', availableWorkers.length);
+      setAvailableWorkers(availableWorkers);
+    } catch (error) {
+      console.error('Error loading available workers:', error);
+      showSnackbar('Erreur lors du chargement des artisans', 'error');
+    } finally {
+      setLoadingWorkers(false);
+    }
+  };
+
+  const handleOpenAssignmentModal = async (request: any) => {
+    setSelectedRequest(request);
+    await loadAvailableWorkers(request);
+    setShowAssignmentModal(true);
   };
 
   // Navigation handlers
@@ -976,8 +1058,25 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
                           size="small"
                           color="primary"
                           onClick={() => handleViewRequest(request)}
+                          title="Voir les détails"
                         >
                           <Eye size={16} />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="secondary"
+                          onClick={() => handleEditRequest(request)}
+                          title="Modifier"
+                        >
+                          <Edit size={16} />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={() => handleDeleteRequest(request.id)}
+                          title="Supprimer"
+                        >
+                          <Trash2 size={16} />
                         </IconButton>
                         {request.status === 'open' && (
                           <Button
@@ -1859,16 +1958,226 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({
         <DialogActions>
           <Button onClick={() => setShowRequestModal(false)}>Fermer</Button>
           {selectedRequest?.status === 'open' && (
-            <Button variant="contained" onClick={() => {
-              const workerId = prompt('ID de l\'artisan à assigner:');
-              if (workerId) {
-                handleAssignRequest(selectedRequest.id, parseInt(workerId));
+            <Button 
+              variant="contained" 
+              onClick={() => {
                 setShowRequestModal(false);
-              }
-            }}>
-              Assigner
+                handleOpenAssignmentModal(selectedRequest);
+              }}
+            >
+              Assigner à un artisan
             </Button>
           )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Assignment Modal */}
+      <Dialog
+        open={showAssignmentModal}
+        onClose={() => setShowAssignmentModal(false)}
+        maxWidth="lg"
+        fullWidth
+      >
+        <DialogTitle>
+          Assigner la demande à un artisan
+        </DialogTitle>
+        <DialogContent>
+          {selectedRequest && (
+            <Stack spacing={3}>
+              {/* Request Summary */}
+              <Box sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 1 }}>
+                <Typography variant="h6" gutterBottom>
+                  {selectedRequest.title}
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  Service: {selectedRequest.service} | Localisation: {selectedRequest.location}
+                </Typography>
+                <Typography color="text.secondary" variant="body2">
+                  Budget: {selectedRequest.budget.min}-{selectedRequest.budget.max}€
+                </Typography>
+              </Box>
+
+              {/* Worker Selection */}
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Sélectionner un artisan disponible
+                </Typography>
+                
+                {loadingWorkers ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : availableWorkers.length === 0 ? (
+                  <Typography color="text.secondary">
+                    Aucun artisan disponible trouvé
+                  </Typography>
+                ) : (
+                  <Stack spacing={2}>
+                    {availableWorkers.map((worker) => (
+                      <Card 
+                        key={worker.id}
+                        sx={{ 
+                          cursor: 'pointer',
+                          border: selectedWorker?.id === worker.id ? 2 : 1,
+                          borderColor: selectedWorker?.id === worker.id ? 'primary.main' : 'divider'
+                        }}
+                        onClick={() => setSelectedWorker(worker)}
+                      >
+                        <CardContent sx={{ p: 2 }}>
+                          <Stack direction="row" spacing={2} alignItems="center">
+                            <Avatar sx={{ width: 48, height: 48 }}>
+                              {worker.firstName?.charAt(0)}{worker.lastName?.charAt(0)}
+                            </Avatar>
+                            <Box sx={{ flex: 1 }}>
+                              <Typography variant="subtitle1" fontWeight={600}>
+                                {worker.firstName} {worker.lastName}
+                              </Typography>
+                              <Typography variant="body2" color="text.secondary">
+                                {worker.specialty || 'Spécialité non définie'}
+                              </Typography>
+                              <Stack direction="row" spacing={2} sx={{ mt: 1 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+                                  <Star size={14} color="#ffa500" fill="#ffa500" />
+                                  <Typography variant="caption">
+                                    {worker.rating || 0}/5
+                                  </Typography>
+                                </Box>
+                                <Typography variant="caption" color="text.secondary">
+                                  {worker.jobsCompleted || 0} projets
+                                </Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                  {worker.location || 'Localisation non définie'}
+                                </Typography>
+                              </Stack>
+                            </Box>
+                            <Box sx={{ textAlign: 'right' }}>
+                              <Typography variant="h6" color="primary">
+                                {worker.hourlyRate ? `${worker.hourlyRate}€/h` : 'Prix non défini'}
+                              </Typography>
+                              <Chip
+                                size="small"
+                                color={worker.workerStatus === 'available' ? 'success' : 'warning'}
+                                label={worker.workerStatus === 'available' ? 'Disponible' : 'Occupé'}
+                              />
+                            </Box>
+                          </Stack>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </Stack>
+                )}
+              </Box>
+
+              {/* Assignment Notes */}
+              {selectedWorker && (
+                <TextField
+                  label="Notes d'assignation (optionnel)"
+                  multiline
+                  rows={3}
+                  value={assignmentNotes}
+                  onChange={(e) => setAssignmentNotes(e.target.value)}
+                  placeholder="Ajouter des notes pour l'artisan..."
+                  fullWidth
+                />
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowAssignmentModal(false)}>
+            Annuler
+          </Button>
+          <Button
+            variant="contained"
+            disabled={!selectedWorker}
+            onClick={() => {
+              if (selectedRequest && selectedWorker) {
+                handleAssignRequest(selectedRequest.id, selectedWorker.id, assignmentNotes);
+              }
+            }}
+          >
+            Assigner la demande
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Request Modal */}
+      <Dialog
+        open={showEditRequestModal}
+        onClose={() => setShowEditRequestModal(false)}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>Modifier la demande</DialogTitle>
+        <DialogContent>
+          {editingRequest && (
+            <Stack spacing={3} sx={{ pt: 1 }}>
+              <TextField
+                label="Titre"
+                fullWidth
+                value={editingRequest.title || ''}
+                onChange={(e) => setEditingRequest({ ...editingRequest, title: e.target.value })}
+              />
+              <TextField
+                label="Description"
+                fullWidth
+                multiline
+                rows={4}
+                value={editingRequest.description || ''}
+                onChange={(e) => setEditingRequest({ ...editingRequest, description: e.target.value })}
+              />
+              <Stack direction="row" spacing={2}>
+                <TextField
+                  label="Budget minimum (€)"
+                  type="number"
+                  value={editingRequest.budgetMin || ''}
+                  onChange={(e) => setEditingRequest({ ...editingRequest, budgetMin: parseFloat(e.target.value) || null })}
+                  sx={{ flex: 1 }}
+                />
+                <TextField
+                  label="Budget maximum (€)"
+                  type="number"
+                  value={editingRequest.budgetMax || ''}
+                  onChange={(e) => setEditingRequest({ ...editingRequest, budgetMax: parseFloat(e.target.value) || null })}
+                  sx={{ flex: 1 }}
+                />
+              </Stack>
+              <TextField
+                label="Localisation"
+                fullWidth
+                value={editingRequest.location || ''}
+                onChange={(e) => setEditingRequest({ ...editingRequest, location: e.target.value })}
+              />
+              <FormControl fullWidth>
+                <InputLabel>Priorité</InputLabel>
+                <Select
+                  value={editingRequest.priority || 'normal'}
+                  onChange={(e) => setEditingRequest({ ...editingRequest, priority: e.target.value })}
+                  label="Priorité"
+                >
+                  <MenuItem value="low">Basse</MenuItem>
+                  <MenuItem value="normal">Normale</MenuItem>
+                  <MenuItem value="high">Haute</MenuItem>
+                  <MenuItem value="urgent">Urgente</MenuItem>
+                </Select>
+              </FormControl>
+              <TextField
+                label="Notes administrateur"
+                fullWidth
+                multiline
+                rows={3}
+                value={editingRequest.adminNotes || ''}
+                onChange={(e) => setEditingRequest({ ...editingRequest, adminNotes: e.target.value })}
+                placeholder="Notes internes pour l'administration..."
+              />
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowEditRequestModal(false)}>Annuler</Button>
+          <Button variant="contained" onClick={handleUpdateRequest}>
+            Mettre à jour
+          </Button>
         </DialogActions>
       </Dialog>
 

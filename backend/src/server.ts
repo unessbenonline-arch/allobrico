@@ -5,6 +5,8 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
+import { createServer } from 'http';
+import { Server as SocketIOServer } from 'socket.io';
 
 dotenv.config();
 
@@ -30,6 +32,15 @@ import notificationRoutes from './routes/notifications';
 console.log('Routes imported successfully');
 
 const app = express();
+const server = createServer(app);
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: true, // Allow all origins in development
+    credentials: true,
+    methods: ['GET', 'POST']
+  }
+});
+
 const PORT = parseInt(process.env.PORT || '5001', 10);
 
 // Swagger definition
@@ -81,6 +92,54 @@ app.use(session({
     maxAge: 1000 * 60 * 60 * 8 // 8 hours
   }
 }));
+
+// Socket.IO middleware for session sharing
+io.use((socket, next) => {
+  const req = socket.request as any;
+  const res = {} as any;
+
+  // Parse cookies from socket handshake
+  const cookieParser = require('cookie-parser');
+  cookieParser()(req, res, () => {});
+
+  // Initialize session
+  const sessionMiddleware = session({
+    name: 'sid',
+    secret: process.env.SESSION_SECRET || 'dev_session_secret_change_me',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 1000 * 60 * 60 * 8
+    }
+  });
+
+  sessionMiddleware(req, res, (err?: any) => {
+    if (err) return next(err);
+    next();
+  });
+});
+
+// Socket.IO connection handling
+io.on('connection', (socket) => {
+  const session = (socket.request as any).session;
+  console.log('User connected:', session?.userId || 'anonymous');
+
+  // Join user-specific room for notifications
+  if (session?.userId) {
+    socket.join(`user_${session.userId}`);
+    console.log(`User ${session.userId} joined room user_${session.userId}`);
+  }
+
+  socket.on('disconnect', () => {
+    console.log('User disconnected:', session?.userId || 'anonymous');
+  });
+});
+
+// Make io available globally for emitting notifications
+(global as any).io = io;
 
 // Disable caching in development
 app.use((req, res, next) => {
@@ -153,12 +212,13 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 AlloObbrico Backend API running on port ${PORT}`);
   console.log(`📊 Health check: http://localhost:80/health`);
   console.log(`📚 API Documentation: http://localhost:80/api-docs`);
   console.log(`🌐 Network access: http://0.0.0.0:${PORT}`);
   console.log(`🔗 Frontend access: http://localhost:80 (via nginx proxy)`);
+  console.log(`🔌 WebSocket server ready`);
 });
 
 export default app;

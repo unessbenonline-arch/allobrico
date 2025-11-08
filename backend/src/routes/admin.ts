@@ -3,6 +3,27 @@ import { query } from '../database';
 
 const router = express.Router();
 
+// Middleware to check if user is authenticated and is an admin
+const requireAdmin = (req: express.Request, res: express.Response, next: express.NextFunction): void => {
+  const userId = (req.session as any)?.userId;
+  const userRole = (req.session as any)?.role;
+
+  if (!userId) {
+    res.status(401).json({ error: 'Authentication required' });
+    return;
+  }
+
+  if (userRole !== 'admin') {
+    res.status(403).json({ error: 'Admin access required' });
+    return;
+  }
+
+  next();
+};
+
+// Apply admin middleware to all admin routes
+router.use(requireAdmin);
+
 // Helper function to transform database user to API format
 const transformUser = (user: any) => ({
   id: user.id,
@@ -169,6 +190,81 @@ router.get('/stats', async (req, res) => {
   } catch (error) {
     console.error('Error fetching admin stats:', error);
     res.status(500).json({ error: 'Failed to fetch statistics' });
+  }
+});
+
+/**
+ * @swagger
+ * /api/admin/users:
+ *   get:
+ *     summary: Get all users for admin management
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [client, worker, admin]
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, active, inactive, suspended, rejected]
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: List of users retrieved successfully
+ */
+router.get('/users', async (req, res) => {
+  try {
+    const { role, status, search } = req.query;
+
+    let whereConditions = [];
+    let params: any[] = [];
+    let paramIndex = 1;
+
+    if (role) {
+      whereConditions.push(`role = $${paramIndex}`);
+      params.push(role);
+      paramIndex++;
+    }
+
+    if (status) {
+      whereConditions.push(`status = $${paramIndex}`);
+      params.push(status);
+      paramIndex++;
+    }
+
+    if (search) {
+      whereConditions.push(`(first_name ILIKE $${paramIndex} OR last_name ILIKE $${paramIndex} OR email ILIKE $${paramIndex})`);
+      params.push(`%${search}%`);
+      paramIndex++;
+    }
+
+    const whereClause = whereConditions.length > 0 ? `WHERE ${whereConditions.join(' AND ')}` : '';
+
+    const queryText = `
+      SELECT * FROM users
+      ${whereClause}
+      ORDER BY created_at DESC
+    `;
+
+    const result = await query(queryText, params);
+
+    const transformedUsers = result.rows.map(user => transformUser(user));
+
+    res.json({
+      data: transformedUsers,
+      total: transformedUsers.length
+    });
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).json({ error: 'Failed to fetch users' });
   }
 });
 
@@ -744,6 +840,9 @@ router.get('/users', async (req, res) => {
         specialty,
         rating,
         jobs_completed,
+        location,
+        hourly_rate,
+        worker_status,
         created_at
       FROM users
       ${whereClause}
@@ -761,7 +860,10 @@ router.get('/users', async (req, res) => {
       type: user.worker_type === 'company' ? 'entreprise' : 'artisan',
       specialty: user.specialty,
       rating: parseFloat(user.rating) || 0,
-      jobs: user.jobs_completed || 0,
+      jobsCompleted: user.jobs_completed || 0,
+      location: user.location,
+      hourlyRate: user.hourly_rate ? parseFloat(user.hourly_rate) : null,
+      workerStatus: user.worker_status || 'available',
       createdAt: user.created_at.toISOString().split('T')[0]
     }));
 
@@ -1386,6 +1488,194 @@ router.put('/requests/:id/assign', async (req, res) => {
   } catch (error) {
     console.error('Error assigning request:', error);
     return res.status(500).json({ error: 'Failed to assign request' });
+  }
+});
+
+/**
+ * @swagger
+ * /admin/requests/{id}:
+ *   put:
+ *     summary: Update a request
+ *     tags: [Admin, Requests]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               categoryId:
+ *                 type: integer
+ *               priority:
+ *                 type: string
+ *                 enum: [low, normal, high, urgent]
+ *               budgetMin:
+ *                 type: number
+ *               budgetMax:
+ *                 type: number
+ *               location:
+ *                 type: string
+ *               locationDetails:
+ *                 type: string
+ *               preferredSchedule:
+ *                 type: string
+ *               requirements:
+ *                 type: string
+ *               adminNotes:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Request updated successfully
+ */
+router.put('/requests/:id', async (req, res) => {
+  try {
+    const requestId = req.params.id;
+    const {
+      title,
+      description,
+      categoryId,
+      priority,
+      budgetMin,
+      budgetMax,
+      location,
+      locationDetails,
+      preferredSchedule,
+      requirements,
+      adminNotes
+    } = req.body;
+
+    const updateFields = [];
+    const updateValues = [];
+    let paramCount = 1;
+
+    if (title !== undefined) {
+      updateFields.push(`title = $${paramCount++}`);
+      updateValues.push(title);
+    }
+    if (description !== undefined) {
+      updateFields.push(`description = $${paramCount++}`);
+      updateValues.push(description);
+    }
+    if (categoryId !== undefined) {
+      updateFields.push(`category_id = $${paramCount++}`);
+      updateValues.push(categoryId);
+    }
+    if (priority !== undefined) {
+      updateFields.push(`priority = $${paramCount++}`);
+      updateValues.push(priority);
+    }
+    if (budgetMin !== undefined) {
+      updateFields.push(`budget_min = $${paramCount++}`);
+      updateValues.push(budgetMin);
+    }
+    if (budgetMax !== undefined) {
+      updateFields.push(`budget_max = $${paramCount++}`);
+      updateValues.push(budgetMax);
+    }
+    if (location !== undefined) {
+      updateFields.push(`location = $${paramCount++}`);
+      updateValues.push(location);
+    }
+    if (locationDetails !== undefined) {
+      updateFields.push(`location_details = $${paramCount++}`);
+      updateValues.push(locationDetails);
+    }
+    if (preferredSchedule !== undefined) {
+      updateFields.push(`preferred_schedule = $${paramCount++}`);
+      updateValues.push(preferredSchedule);
+    }
+    if (requirements !== undefined) {
+      updateFields.push(`requirements = $${paramCount++}`);
+      updateValues.push(requirements);
+    }
+    if (adminNotes !== undefined) {
+      updateFields.push(`admin_notes = $${paramCount++}`);
+      updateValues.push(adminNotes);
+    }
+
+    if (updateFields.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    updateFields.push(`updated_at = CURRENT_TIMESTAMP`);
+    updateValues.push(requestId);
+
+    const updateQuery = `
+      UPDATE requests
+      SET ${updateFields.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING *
+    `;
+
+    const result = await query(updateQuery, updateValues);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    return res.json({
+      message: 'Request updated successfully',
+      request: transformRequest(result.rows[0])
+    });
+  } catch (error) {
+    console.error('Error updating request:', error);
+    return res.status(500).json({ error: 'Failed to update request' });
+  }
+});
+
+/**
+ * @swagger
+ * /admin/requests/{id}:
+ *   delete:
+ *     summary: Delete a request
+ *     tags: [Admin, Requests]
+ *     security:
+ *       - sessionAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Request deleted successfully
+ */
+router.delete('/requests/:id', async (req, res) => {
+  try {
+    const requestId = req.params.id;
+
+    const deleteQuery = `
+      DELETE FROM requests
+      WHERE id = $1
+      RETURNING id
+    `;
+
+    const result = await query(deleteQuery, [requestId]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    return res.json({
+      message: 'Request deleted successfully',
+      requestId: requestId
+    });
+  } catch (error) {
+    console.error('Error deleting request:', error);
+    return res.status(500).json({ error: 'Failed to delete request' });
   }
 });
 
