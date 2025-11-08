@@ -846,8 +846,8 @@ router.post('/:id/offers', async (req: Request, res: Response) => {
     const { workerId, price, description, timeline, availability } = req.body;
 
     // Validate required fields
-    if (!workerId || !price) {
-      return res.status(400).json({ error: 'Worker ID and price are required' });
+    if (!workerId || price === undefined || price === null || isNaN(Number(price))) {
+      return res.status(400).json({ error: 'Worker ID and valid numeric price are required' });
     }
 
     // Check if request exists
@@ -856,27 +856,68 @@ router.post('/:id/offers', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Request not found' });
     }
 
-    // Check if worker exists
-    const workerCheck = await query('SELECT id FROM users WHERE id = $1 AND role = $2', [workerId, 'worker']);
-    if (workerCheck.rows.length === 0) {
-      return res.status(404).json({ error: 'Worker not found' });
+    // Resolve worker id (support demo IDs in development)
+    const demoIds = ['worker1', 'client1', 'business1', 'admin1'];
+    let actualWorkerId = workerId;
+    if (demoIds.includes(workerId)) {
+      // Pick a real worker UUID from DB to satisfy FK constraints
+      const pickWorker = await query("SELECT id FROM users WHERE role = 'worker' AND status = 'active' ORDER BY rating DESC, jobs_completed DESC LIMIT 1");
+      if (pickWorker.rows.length === 0) {
+        return res.status(404).json({ error: 'No worker available in database' });
+      }
+      actualWorkerId = pickWorker.rows[0].id;
+    } else {
+      // Validate worker exists
+      const workerCheck = await query('SELECT id FROM users WHERE id = $1 AND role = $2', [workerId, 'worker']);
+      if (workerCheck.rows.length === 0) {
+        return res.status(404).json({ error: 'Worker not found' });
+      }
     }
 
     // Insert offer
-    const result = await query(`
-      INSERT INTO offers (request_id, worker_id, price, description, timeline, availability)
-      VALUES ($1, $2, $3, $4, $5, $6)
-      RETURNING id, request_id, worker_id, price, description, timeline, availability, status, created_at
-    `, [id, workerId, price, description, timeline, availability]);
+    const result = await query(
+      `INSERT INTO offers (request_id, worker_id, price, description, timeline, availability)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, request_id, worker_id, price, description, timeline, availability, status, created_at`,
+      [id, actualWorkerId, Number(price), description, timeline, availability]
+    );
 
     const offer = result.rows[0];
 
-    return res.status(201).json({
-      message: 'Offer submitted successfully',
-      offer
-    });
-  } catch (error) {
-    console.error('Error creating offer:', error);
+    // Create a real notification for the client (if request has client)
+    try {
+      const requestInfo = await query('SELECT client_id, title FROM requests WHERE id = $1', [id]);
+      if (requestInfo.rows.length) {
+        const { client_id: clientId, title } = requestInfo.rows[0];
+        await query(
+          `INSERT INTO notifications (user_id, type, title, message, payload)
+           VALUES ($1, $2, $3, $4, $5)`,
+          [
+            clientId,
+            'offer.new',
+            'Nouvelle offre reçue',
+            `Vous avez reçu une nouvelle offre pour "${title}"`,
+            JSON.stringify({ requestId: id, offerId: offer.id, price: offer.price, workerId: offer.worker_id })
+          ]
+        );
+      }
+    } catch (notifErr) {
+      console.warn('Failed to insert notification:', notifErr);
+    }
+    // offer already defined above
+    return res.status(201).json({ message: 'Offer submitted successfully', offer });
+  } catch (error: any) {
+    // Surface more helpful errors during development
+    const pgCode = error?.code;
+    if (pgCode === '23503') {
+      // foreign_key_violation
+      return res.status(404).json({ error: 'Related entity not found (request or worker)' });
+    }
+    if (pgCode === '22P02') {
+      // invalid_text_representation (e.g., invalid UUID)
+      return res.status(400).json({ error: 'Invalid UUID format for request or worker' });
+    }
+    console.error('Error creating offer:', { message: error?.message, code: error?.code, detail: error?.detail });
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

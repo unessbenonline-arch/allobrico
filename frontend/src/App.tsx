@@ -11,11 +11,13 @@ import Chat from './components/Chat';
 import { Bell, LogOut, Moon, Sun, Check, X, GraduationCap, MessageCircle, LayoutDashboard } from 'lucide-react';
 import { AppBar, Toolbar, Box, IconButton, Typography, Avatar, Container, Badge, Paper, useTheme as useMuiTheme, Popover, List, ListItem, ListItemText, ListItemIcon, ListItemAvatar, Chip, Divider, Button } from '@mui/material';
 import { useAuthStore, useCategoriesStore, useWorkersStore, useRequestsStore } from './stores';
-import { messageService } from './utils';
+import { useAppStore } from './stores/appStore';
+import { messageService, notificationsService, formatTimeAgo } from './utils';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 
 function AppContent() {
-  const { isLoggedIn, userRole, setIsLoggedIn, setUserRole } = useAuthStore();
+  const { isLoggedIn, userRole, setIsLoggedIn, setUserRole, user, hydrate, logout } = useAuthStore() as any;
+  const { user: appUser, isAuthenticated, login: appLogin, register: appRegister, logout: appLogout } = useAppStore();
   const { fetchCategories } = useCategoriesStore();
   const { fetchWorkers } = useWorkersStore();
   const { fetchRequests, requests } = useRequestsStore();
@@ -24,13 +26,7 @@ function AppContent() {
 
   const [email, setEmail] = React.useState(() => localStorage.getItem('userEmail') || '');
   const [password, setPassword] = React.useState('');
-  const [notifications, setNotifications] = React.useState([
-    { id: 1, message: 'Nouvelle demande de devis reçue pour plomberie', type: 'info', time: '2h', read: false, category: 'request' },
-    { id: 2, message: 'Votre projet de peinture a été terminé avec succès', type: 'success', time: '1 jour', read: false, category: 'project' },
-    { id: 3, message: 'Rappel: Rendez-vous demain à 14h avec M. Dubois', type: 'warning', time: '3h', read: true, category: 'appointment' },
-    { id: 4, message: 'Nouveau message de l\'artisan Pierre Martin', type: 'info', time: '5h', read: false, category: 'message' },
-    { id: 5, message: 'Paiement reçu pour le projet de rénovation', type: 'success', time: '2 jours', read: true, category: 'payment' }
-  ]);
+  const [notifications, setNotifications] = React.useState<any[]>([]);
   const [messages, setMessages] = React.useState([
     { id: 1, from: 'Pierre Martin', content: 'Bonjour, je peux intervenir demain matin pour la réparation.', time: '10 min', unread: true, conversationId: 'conv1' },
     { id: 2, from: 'Sophie Leroy', content: 'Le devis pour l\'installation électrique est prêt.', time: '1h', unread: true, conversationId: 'conv2' },
@@ -52,21 +48,12 @@ function AppContent() {
   const [location, setLocation] = React.useState('');
   const [isUrgent, setIsUrgent] = React.useState(false);
 
-  // Load persisted state on mount
-  useEffect(() => {
-    const persistedLogin = localStorage.getItem('isLoggedIn');
-    const persistedRole = localStorage.getItem('userRole');
-    const persistedEmail = localStorage.getItem('userEmail');
+  const { hydrate: appHydrate } = useAppStore();
 
-    if (persistedLogin === 'true' && persistedRole) {
-      setIsLoggedIn(true);
-      setUserRole(persistedRole);
-      setCurrentPage('dashboard'); // Reset to dashboard when loading persisted state
-      if (persistedEmail) {
-        setEmail(persistedEmail);
-      }
-    }
-  }, [setIsLoggedIn, setUserRole]);
+  // Hydrate user session on mount
+  useEffect(() => {
+    appHydrate();
+  }, [appHydrate]);
 
   // Persist login state changes
   useEffect(() => {
@@ -87,8 +74,9 @@ function AppContent() {
         console.error('Failed to load initial data', err);
       }
     };
+    // Only load after we know auth state
     load();
-  }, [fetchCategories, fetchWorkers, fetchRequests]);
+  }, [fetchCategories, fetchWorkers, fetchRequests, isLoggedIn, userRole, user?.id]);
 
   // Fetch conversations from API
   useEffect(() => {
@@ -106,20 +94,57 @@ function AppContent() {
     }
   }, [isLoggedIn]);
 
-  const handleLogout = () => {
-    setIsLoggedIn(false);
-    setUserRole('client');
+  const loadNotifications = React.useCallback(async () => {
+    try {
+      const data = await notificationsService.getNotifications();
+      setNotifications(data.notifications || []);
+    } catch (e) {
+      console.error('Failed to fetch notifications', e);
+    }
+  }, []);
+
+  // Notifications: initial load, polling, and refresh on focus
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    let timer: number | undefined;
+
+    // Initial fetch
+    loadNotifications();
+
+    // Poll every 30s
+    timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        loadNotifications();
+      }
+    }, 30000);
+
+    // Refresh on tab focus/visibility
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        loadNotifications();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, [isLoggedIn, loadNotifications]);
+
+  const handleLogout = async () => {
+    await appLogout();
     setEmail('');
     setPassword('');
-    setCurrentPage('dashboard'); // Reset to dashboard on logout
-    // Clear persisted state
-    localStorage.removeItem('isLoggedIn');
-    localStorage.removeItem('userRole');
+    setCurrentPage('dashboard');
     localStorage.removeItem('userEmail');
   };
 
-  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
+  
+
+  const handleNotificationClick = async (event: React.MouseEvent<HTMLElement>) => {
     setNotificationAnchor(event.currentTarget);
+    await loadNotifications(); // Refresh immediately when opening
   };
 
   const handleNotificationClose = () => {
@@ -134,21 +159,30 @@ function AppContent() {
     setMessageAnchor(null);
   };
 
-  const markAsRead = (id: number) => {
-    setNotifications(prev => prev.map(notif => 
-      notif.id === id ? { ...notif, read: true } : notif
-    ));
+  const markAsRead = async (id: number) => {
+    try {
+      await notificationsService.markRead(id);
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
+    } catch (e) {
+      console.error('Failed to mark notification read', e);
+    }
   };
 
-  const markAllAsRead = () => {
-    setNotifications(prev => prev.map(notif => ({ ...notif, read: true })));
+  const markAllAsRead = async () => {
+    try {
+      await notificationsService.markAllRead();
+      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
+    } catch (e) {
+      console.error('Failed to mark all notifications read', e);
+    }
   };
 
+  // Local hide (no backend delete endpoint yet)
   const deleteNotification = (id: number) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== id));
+    setNotifications(prev => prev.filter(n => n.id !== id));
   };
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter(n => !n.is_read).length;
   const unreadMessageCount = conversations.reduce((sum, conv) => sum + conv.unreadCount, 0);
 
   if (!isLoggedIn) {
@@ -169,19 +203,10 @@ function AppContent() {
   // Add stable demo IDs so dashboards relying on userProfile.id can query backend endpoints.
   // In a real implementation this would come from the authenticated user object.
   const userProfile = {
-    id: userRole === 'client' ? 'client1' :
-    userRole === 'worker' ? 'worker1' :
-    userRole === 'business' ? 'business1' :
-    'admin1',
-    name: userRole === 'client' ? 'Marie Dupont' : 
-      userRole === 'worker' ? 'Pierre Martin' :
-      userRole === 'business' ? 'TechPro Services' :
-      'Admin AlloBrico',
-    email: email || 'marie.dupont@email.fr',
-    avatar: userRole === 'client' ? 'MD' : 
-    userRole === 'worker' ? 'PM' :
-    userRole === 'business' ? 'TP' :
-    'AA'
+    id: appUser?.id || user?.id || 'unknown',
+    name: appUser ? (appUser.name || `${appUser.firstName || ''} ${appUser.lastName || ''}`.trim() || appUser.email) : user ? (user.name || `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email) : 'Utilisateur',
+    email: appUser?.email || user?.email || email,
+    avatar: appUser ? (appUser.avatar || (appUser.firstName && appUser.lastName ? `${appUser.firstName[0]}${appUser.lastName[0]}`.toUpperCase() : (appUser.email?.slice(0,2) || 'U').toUpperCase())) : user ? (user.avatar || (user.firstName && user.lastName ? `${user.firstName[0]}${user.lastName[0]}`.toUpperCase() : (user.email?.slice(0,2) || 'U').toUpperCase())) : 'U'
   };
 
   return (
@@ -250,9 +275,9 @@ function AppContent() {
                     fontSize: '0.75rem',
                   }}
                 >
-                  {userRole === 'client' ? 'Espace Client' :
-                   userRole === 'worker' ? 'Espace Artisan' :
-                   userRole === 'business' ? 'Espace Entreprise' :
+            {(user?.role || userRole) === 'client' ? 'Espace Client' :
+             (user?.role || userRole) === 'worker' ? 'Espace Artisan' :
+             (user?.role || userRole) === 'business' ? 'Espace Entreprise' :
                    'Administration'}
                 </Typography>
               </Box>
@@ -437,9 +462,9 @@ function AppContent() {
         ) : currentPage === 'messages' ? (
           <Chat
             currentUser={{
-              id: userRole === 'client' ? 'client1' : 'worker1',
+              id: user?.id || ((userRole === 'client') ? 'client1' : 'worker1'),
               name: userProfile.name,
-              type: userRole as 'client' | 'worker'
+              type: (user?.role || userRole) as 'client' | 'worker'
             }}
             initialWorkerId={selectedWorkerId || undefined}
             onClose={() => {
@@ -449,7 +474,7 @@ function AppContent() {
           />
         ) : (
           (() => {
-            switch (userRole) {
+            switch (user?.role || userRole) {
               case 'client':
                 return (
                   <ClientDashboard
@@ -540,7 +565,7 @@ function AppContent() {
               <React.Fragment key={notification.id}>
                 <ListItem
                   sx={{
-                    bgcolor: !notification.read ? 'action.hover' : 'transparent',
+                    bgcolor: !notification.is_read ? 'action.hover' : 'transparent',
                     '&:hover': { bgcolor: 'action.selected' }
                   }}
                 >
@@ -550,7 +575,8 @@ function AppContent() {
                         width: 8,
                         height: 8,
                         borderRadius: '50%',
-                        bgcolor: notification.type === 'success' ? 'success.main' :
+                        bgcolor: notification.type === 'offer.new' ? 'primary.main' :
+                                notification.type === 'success' ? 'success.main' :
                                 notification.type === 'warning' ? 'warning.main' :
                                 notification.type === 'error' ? 'error.main' : 'info.main'
                       }}
@@ -558,26 +584,28 @@ function AppContent() {
                   </ListItemIcon>
                   <ListItemText
                     primary={
-                      <Typography variant="body2" fontWeight={!notification.read ? 600 : 400}>
-                        {notification.message}
+                      <Typography variant="body2" fontWeight={!notification.is_read ? 600 : 400}>
+                        {notification.title ? notification.title : notification.message}
                       </Typography>
                     }
                     secondary={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
                         <Typography variant="caption" color="text.secondary">
-                          {notification.time}
+                          {formatTimeAgo(notification.created_at)}
                         </Typography>
-                        <Chip
-                          label={notification.category}
-                          size="small"
-                          variant="outlined"
-                          sx={{ height: 18, fontSize: '0.7rem' }}
-                        />
+                        {notification.type && (
+                          <Chip
+                            label={String(notification.type).replace(/\./g, ' ')}
+                            size="small"
+                            variant="outlined"
+                            sx={{ height: 18, fontSize: '0.7rem', textTransform: 'none' }}
+                          />
+                        )}
                       </Box>
                     }
                   />
                   <Box sx={{ display: 'flex', gap: 0.5 }}>
-                    {!notification.read && (
+                    {!notification.is_read && (
                       <IconButton size="small" onClick={() => markAsRead(notification.id)}>
                         <Check size={14} />
                       </IconButton>

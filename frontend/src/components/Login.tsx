@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Building, Wrench, Shield, ArrowLeft, Mail, Key } from 'lucide-react';
+import { Lock, User, Building, Wrench, Shield, ArrowLeft, Mail, Key, UserPlus } from 'lucide-react';
 import Logo from './Logo';
 import {
   Box,
@@ -21,6 +21,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import { authService } from '../utils';
+import { useAppStore } from '../stores/appStore';
 import { useTheme } from '../contexts/ThemeContext';
 
 interface LoginProps {
@@ -44,6 +45,12 @@ const Login: React.FC<LoginProps> = ({
   setIsLoggedIn,
 }) => {
   const { isDarkMode } = useTheme();
+  const { login: appLogin, register: appRegister } = useAppStore();
+  const [isRegisterMode, setIsRegisterMode] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [resetCode, setResetCode] = useState('');
@@ -55,13 +62,29 @@ const Login: React.FC<LoginProps> = ({
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
+    setLoading(true);
+    setAuthError(null);
     try {
-      await authService.login(email, password, userRole);
-      // Assuming successful login returns user data
+      await appLogin(email, password, userRole as any);
       setIsLoggedIn(true);
     } catch (err: any) {
-      console.error('Login error:', err.message || 'Erreur de connexion');
+      setAuthError(err?.message || 'Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setAuthError(null);
+    try {
+      await appRegister({ email, password, firstName, lastName, role: userRole as any });
+      setIsLoggedIn(true);
+    } catch (err: any) {
+      setAuthError(err?.message || 'Erreur lors de la création du compte');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -222,16 +245,12 @@ const Login: React.FC<LoginProps> = ({
             border: isDarkMode ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(0, 0, 0, 0.08)',
           }}
         >
-          <Typography
-            variant="h4"
-            fontWeight={700}
-            textAlign="center"
-            gutterBottom
-          >
-            Connexion
+          <Typography variant="h4" fontWeight={700} textAlign="center" gutterBottom>
+            {isRegisterMode ? 'Créer un compte' : 'Connexion'}
           </Typography>
+          {authError && <Alert severity="error" sx={{ mb: 2 }}>{authError}</Alert>}
 
-          <Box component="form" onSubmit={handleLogin} sx={{ mt: 2 }}>
+          <Box component="form" onSubmit={isRegisterMode ? handleRegister : handleLogin} sx={{ mt: 2 }}>
             <Stack spacing={3}>
               <TextField
                 type="email"
@@ -246,6 +265,23 @@ const Login: React.FC<LoginProps> = ({
                   ),
                 }}
               />
+
+              {isRegisterMode && (
+                <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                  <TextField
+                    label="Prénom"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
+                  <TextField
+                    label="Nom"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
+                </Stack>
+              )}
 
               <TextField
                 type="password"
@@ -276,9 +312,27 @@ const Login: React.FC<LoginProps> = ({
                 </Select>
               </FormControl>
 
-              <Button type="submit" variant="contained" size="large">
-                Se connecter
-              </Button>
+              <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  size="large"
+                  disabled={!email || !password || (isRegisterMode && (!firstName || !lastName)) || loading}
+                  sx={{ py: 1.4, fontSize: '1rem', flex: 1 }}
+                  startIcon={isRegisterMode ? <UserPlus size={18} /> : <Lock size={18} />}
+                >
+                  {loading ? <CircularProgress size={22} color="inherit" /> : (isRegisterMode ? 'Créer le compte' : 'Se connecter')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outlined"
+                  color="secondary"
+                  onClick={() => { setIsRegisterMode(m => !m); setAuthError(null); }}
+                  sx={{ py: 1.4, fontSize: '1rem' }}
+                >
+                  {isRegisterMode ? 'Déjà un compte ?' : 'Créer un compte'}
+                </Button>
+              </Stack>
             </Stack>
           </Box>
 

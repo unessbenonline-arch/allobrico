@@ -92,6 +92,12 @@ export const createAppTheme = (mode: 'light' | 'dark'): Theme => {
       MuiTextField: {
         defaultProps: {
           size: 'medium',
+          InputLabelProps: {
+            shrink: true,
+          },
+          sx: {
+            mt: 2,
+          },
         },
       },
     },

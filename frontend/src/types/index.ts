@@ -1,10 +1,12 @@
 // Type definitions for better type safety
 export interface User {
   id: string;
-  name: string;
+  name?: string; // Optional for backward compatibility
+  firstName?: string;
+  lastName?: string;
   email: string;
   role: 'client' | 'worker' | 'business' | 'admin';
-  avatar: string;
+  avatar?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -155,6 +155,19 @@ CREATE TABLE IF NOT EXISTS reports (
     resolved_at TIMESTAMP WITH TIME ZONE
 );
 
+-- Notifications table
+CREATE TABLE IF NOT EXISTS notifications (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL, -- 'offer_received', 'request_assigned', 'message_received', 'payment_received', etc.
+    title VARCHAR(255) NOT NULL,
+    message TEXT NOT NULL,
+    payload JSONB, -- Additional data for the notification
+    is_read BOOLEAN DEFAULT false,
+    read_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Offers table (worker offers for service requests)
 CREATE TABLE IF NOT EXISTS offers (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -256,6 +269,9 @@ CREATE INDEX IF NOT EXISTS idx_requests_category_id ON requests(category_id);
 CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
 CREATE INDEX IF NOT EXISTS idx_reports_reporter_id ON reports(reporter_id);
 CREATE INDEX IF NOT EXISTS idx_reports_reported_user_id ON reports(reported_user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
 CREATE INDEX IF NOT EXISTS idx_offers_request_id ON offers(request_id);
 CREATE INDEX IF NOT EXISTS idx_offers_worker_id ON offers(worker_id);
 CREATE INDEX IF NOT EXISTS idx_offers_status ON offers(status);
@@ -280,6 +296,7 @@ CREATE TRIGGER update_users_updated_at BEFORE UPDATE ON users FOR EACH ROW EXECU
 CREATE TRIGGER update_categories_updated_at BEFORE UPDATE ON categories FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_requests_updated_at BEFORE UPDATE ON requests FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_reports_updated_at BEFORE UPDATE ON reports FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER update_notifications_updated_at BEFORE UPDATE ON notifications FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_offers_updated_at BEFORE UPDATE ON offers FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_conversations_updated_at BEFORE UPDATE ON conversations FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER update_messages_updated_at BEFORE UPDATE ON messages FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

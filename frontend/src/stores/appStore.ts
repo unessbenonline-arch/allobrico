@@ -24,7 +24,8 @@ interface AppState {
   // Actions
   login: (email: string, password: string, role: User['role']) => Promise<void>;
   logout: () => void;
-  register: (userData: Partial<User>) => Promise<void>;
+  register: (userData: { email: string; password: string; firstName: string; lastName: string; role: User['role']; }) => Promise<void>;
+  hydrate: () => Promise<void>;
 
   // Data actions
   fetchRequests: () => Promise<void>;
@@ -88,7 +89,7 @@ export const useAppStore = create<AppState>()(
         localStorage.removeItem('user');
       },
 
-      register: async (userData: Partial<User>) => {
+      register: async (userData) => {
         set({ isLoading: true, error: null });
         try {
           const response = await authService.register(userData) as { user: User };
@@ -106,11 +107,31 @@ export const useAppStore = create<AppState>()(
         }
       },
 
+      hydrate: async () => {
+        try {
+          const response = await authService.getCurrentUser() as User;
+          if (response && response.id) {
+            set({
+              user: response,
+              isAuthenticated: true
+            });
+          }
+        } catch {
+          // Not logged in
+        }
+      },
+
       // Data actions
       fetchRequests: async () => {
         set({ isLoadingRequests: true, error: null });
         try {
-          const response = await requestService.getRequests() as { data: ServiceRequest[] };
+          // Restrict for clients to their own demandes
+          const state = get();
+          const params: any = {};
+          if (state.isAuthenticated && state.user?.role === 'client' && state.user?.id) {
+            params.clientId = state.user.id;
+          }
+          const response = await requestService.getRequests(params) as { data: ServiceRequest[] };
           set({
             requests: response.data || [],
             isLoadingRequests: false
@@ -161,12 +182,18 @@ export const useAppStore = create<AppState>()(
       createRequest: async (requestData: Partial<ServiceRequest>) => {
         set({ isLoading: true, error: null });
         try {
-          const response = await requestService.createRequest(requestData) as { data: ServiceRequest };
-          const newRequest = response.data;
-          set(state => ({
-            requests: [newRequest, ...state.requests],
+          await requestService.createRequest(requestData);
+          // Refresh requests after creating, maintaining client filter
+          const state = get();
+          const params: any = {};
+          if (state.isAuthenticated && state.user?.role === 'client' && state.user?.id) {
+            params.clientId = state.user.id;
+          }
+          const response = await requestService.getRequests(params) as { data: ServiceRequest[] };
+          set({
+            requests: response.data || [],
             isLoading: false
-          }));
+          });
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'Failed to create request',

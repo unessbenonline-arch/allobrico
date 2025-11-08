@@ -24,6 +24,10 @@ import {
   Users,
   BarChart3,
   MessageCircle,
+  Euro,
+  Shield,
+  CreditCard,
+  Wrench,
 } from 'lucide-react';
 import {
   Box,
@@ -65,6 +69,8 @@ import {
   Input,
   FormControlLabel,
   Checkbox,
+  InputLabel,
+  Grid,
 } from '@mui/material';
 import { api, projectService, workerService, requestService, getLocationString } from '../utils';
 import Chat from './Chat';
@@ -180,7 +186,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
   const [portfolio, setPortfolio] = useState<PortfolioItem[]>([]);
   const [progressUpdates, setProgressUpdates] = useState<ProgressUpdate[]>([]);
   const [loading, setLoading] = useState(false);
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'warning' });
 
   // Dialog states
   const [progressDialog, setProgressDialog] = useState({ open: false, project: null as Project | null });
@@ -211,6 +217,13 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
     description: '',
     timeline: '',
     availability: '',
+    estimatedHours: '',
+    materialsIncluded: 'client' as 'client' | 'worker' | 'both',
+    notes: '',
+    warranty: '',
+    paymentTerms: 'upon_completion' as 'upon_completion' | '50_50' | 'deposit',
+    startDate: '',
+    endDate: '',
   });
 
   const stats = [
@@ -354,26 +367,78 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
     }
   };
 
-  const handleOffer = (request: any) => {
-    setOfferDialog({ open: true, request });
-    setOfferForm({
-      price: '',
-      description: '',
-      timeline: '',
-      availability: '',
-    });
+  const handleOffer = async (request: any) => {
+    try {
+      // Check if worker has already submitted an offer for this request
+      const offersResponse = await api.get(`/requests/${request.id}/offers`) as any;
+      const existingOffers = offersResponse.data?.offers || [];
+      const hasExistingOffer = existingOffers.some((offer: any) => offer.workerId === userProfile.id);
+
+      if (hasExistingOffer) {
+        setSnackbar({ open: true, message: 'Vous avez déjà soumis une offre pour cette demande', severity: 'warning' });
+        return;
+      }
+
+      setOfferDialog({ open: true, request });
+      setOfferForm({
+        price: '',
+        description: '',
+        timeline: '',
+        availability: '',
+        estimatedHours: '',
+        materialsIncluded: 'client',
+        notes: '',
+        warranty: '',
+        paymentTerms: 'upon_completion',
+        startDate: '',
+        endDate: '',
+      });
+    } catch (error) {
+      console.warn('Could not check existing offers, proceeding anyway:', error);
+      // Proceed without checking to avoid blocking the user
+    }
   };
 
   const handleSubmitOffer = async () => {
     if (!offerDialog.request) return;
 
+    // Validation
+    const price = parseFloat(offerForm.price);
+    if (isNaN(price) || price <= 0) {
+      setSnackbar({ open: true, message: 'Veuillez entrer un prix valide supérieur à 0', severity: 'error' });
+      return;
+    }
+
+    if (!offerForm.description.trim()) {
+      setSnackbar({ open: true, message: 'Veuillez décrire votre offre', severity: 'error' });
+      return;
+    }
+
+    if (!offerForm.timeline.trim()) {
+      setSnackbar({ open: true, message: 'Veuillez indiquer le délai d\'intervention', severity: 'error' });
+      return;
+    }
+
+    if (!offerForm.availability.trim()) {
+      setSnackbar({ open: true, message: 'Veuillez indiquer votre disponibilité', severity: 'error' });
+      return;
+    }
+
     try {
-      await api.post(`/api/requests/${offerDialog.request.id}/offers`, {
+      await api.post(`/requests/${offerDialog.request.id}/offers`, {
         workerId: userProfile.id,
-        price: parseFloat(offerForm.price),
+        price: price,
         description: offerForm.description,
         timeline: offerForm.timeline,
         availability: offerForm.availability,
+        // Note: Additional fields will be supported in future backend updates
+        // estimatedHours: offerForm.estimatedHours,
+        // materialsIncluded: offerForm.materialsIncluded,
+        // notes: offerForm.notes,
+        // warranty: offerForm.warranty,
+        // paymentTerms: offerForm.paymentTerms,
+        // startDate: offerForm.startDate,
+        // endDate: offerForm.endDate,
       });
 
       setPendingRequests((prev) =>
@@ -382,9 +447,10 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
 
       setOfferDialog({ open: false, request: null });
       setSnackbar({ open: true, message: 'Offre envoyée avec succès', severity: 'success' });
-    } catch (error) {
-      console.error(error);
-      setSnackbar({ open: true, message: 'Erreur lors de l\'envoi de l\'offre', severity: 'error' });
+    } catch (error: any) {
+      console.error('Error submitting offer:', error);
+      const errorMessage = error?.response?.data?.error || error?.message || 'Erreur lors de l\'envoi de l\'offre';
+      setSnackbar({ open: true, message: errorMessage, severity: 'error' });
     }
   };
 
@@ -1430,78 +1496,226 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
         <DialogContent>
           <Stack spacing={3} sx={{ pt: 1 }}>
             {offerDialog.request && (
-              <Box>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  Détails de la demande
-                </Typography>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  {offerDialog.request.description}
-                </Typography>
-                <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-                  <Chip
-                    label={offerDialog.request.category}
-                    variant="outlined"
-                    size="small"
-                  />
-                  {offerDialog.request.isUrgent && (
+              <Card sx={{ bgcolor: 'grey.50' }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ mb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Briefcase size={20} />
+                    Détails de la demande
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    {offerDialog.request.description}
+                  </Typography>
+                  <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
                     <Chip
-                      label="Urgent"
-                      color="error"
+                      label={offerDialog.request.category}
+                      variant="outlined"
                       size="small"
+                      icon={<Wrench size={16} />}
                     />
-                  )}
-                </Stack>
-                <Typography variant="body2">
-                  <strong>Budget client:</strong> {offerDialog.request.budget?.min}€ - {offerDialog.request.budget?.max}€
-                </Typography>
-                <Typography variant="body2">
-                  <strong>Localisation:</strong> {offerDialog.request.location?.address}
-                </Typography>
-              </Box>
+                    {offerDialog.request.isUrgent && (
+                      <Chip
+                        label="Urgent"
+                        color="error"
+                        size="small"
+                        icon={<Clock size={16} />}
+                      />
+                    )}
+                  </Stack>
+                  <Grid container spacing={2}>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Euro size={16} />
+                        <strong>Budget client:</strong> {offerDialog.request.budget?.min}€ - {offerDialog.request.budget?.max}€
+                      </Typography>
+                    </Grid>
+                    <Grid size={{ xs: 12, sm: 6 }}>
+                      <Typography variant="body2" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <MapPin size={16} />
+                        <strong>Localisation:</strong> {offerDialog.request.location?.address}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+              </Card>
             )}
 
             <Divider />
 
             <Box>
-              <Typography variant="h6" sx={{ mb: 2 }}>
-                Votre offre
+              <Typography variant="h6" sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Star size={20} />
+                Votre offre détaillée
               </Typography>
-              <Stack spacing={2}>
-                <TextField
-                  label="Prix proposé (€)"
-                  type="number"
-                  value={offerForm.price}
-                  onChange={(e) => setOfferForm(prev => ({ ...prev, price: e.target.value }))}
-                  fullWidth
-                  required
-                />
-                <TextField
-                  label="Description de votre offre"
-                  multiline
-                  rows={3}
-                  value={offerForm.description}
-                  onChange={(e) => setOfferForm(prev => ({ ...prev, description: e.target.value }))}
-                  placeholder="Décrivez vos services, votre expérience, les matériaux utilisés..."
-                  fullWidth
-                  required
-                />
-                <TextField
-                  label="Délai d'intervention"
-                  value={offerForm.timeline}
-                  onChange={(e) => setOfferForm(prev => ({ ...prev, timeline: e.target.value }))}
-                  placeholder="Ex: 2-3 jours, 1 semaine..."
-                  fullWidth
-                  required
-                />
-                <TextField
-                  label="Disponibilité"
-                  value={offerForm.availability}
-                  onChange={(e) => setOfferForm(prev => ({ ...prev, availability: e.target.value }))}
-                  placeholder="Ex: Disponible dès lundi, Cette semaine..."
-                  fullWidth
-                  required
-                />
-              </Stack>
+
+              <Grid container spacing={3}>
+                {/* Prix et conditions */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Euro size={18} />
+                        Prix et paiement
+                      </Typography>
+                      <Stack spacing={2}>
+                        <TextField
+                          label="Prix proposé (€)"
+                          type="number"
+                          value={offerForm.price}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, price: e.target.value }))}
+                          fullWidth
+                          required
+                        />
+                        <FormControl fullWidth>
+                          <InputLabel>Conditions de paiement</InputLabel>
+                          <Select
+                            value={offerForm.paymentTerms}
+                            onChange={(e) => setOfferForm(prev => ({ ...prev, paymentTerms: e.target.value as any }))}
+                            label="Conditions de paiement"
+                          >
+                            <MenuItem value="upon_completion">Paiement à la fin</MenuItem>
+                            <MenuItem value="50_50">50% à l'avance, 50% à la fin</MenuItem>
+                            <MenuItem value="deposit">Acompte de 30%</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Délais et disponibilité */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Clock size={18} />
+                        Délais et planning
+                      </Typography>
+                      <Stack spacing={2}>
+                        <TextField
+                          label="Délai d'intervention"
+                          value={offerForm.timeline}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, timeline: e.target.value }))}
+                          placeholder="Ex: 2-3 jours, 1 semaine..."
+                          fullWidth
+                          required
+                        />
+                        <TextField
+                          label="Disponibilité"
+                          value={offerForm.availability}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, availability: e.target.value }))}
+                          placeholder="Ex: Disponible dès lundi..."
+                          fullWidth
+                          required
+                        />
+                        <TextField
+                          label="Temps estimé (heures)"
+                          type="number"
+                          value={offerForm.estimatedHours}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, estimatedHours: e.target.value }))}
+                          placeholder="Ex: 4, 8, 16..."
+                          fullWidth
+                        />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Dates */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Calendar size={18} />
+                        Dates proposées
+                      </Typography>
+                      <Stack spacing={2}>
+                        <TextField
+                          label="Date de début souhaitée"
+                          type="date"
+                          value={offerForm.startDate}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, startDate: e.target.value }))}
+                          fullWidth
+                          InputLabelProps={{ shrink: true }}
+                        />
+                        <TextField
+                          label="Date de fin estimée"
+                          type="date"
+                          value={offerForm.endDate}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, endDate: e.target.value }))}
+                          fullWidth
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Matériaux et garantie */}
+                <Grid size={{ xs: 12, md: 6 }}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Shield size={18} />
+                        Matériaux et garantie
+                      </Typography>
+                      <Stack spacing={2}>
+                        <FormControl fullWidth>
+                          <InputLabel>Matériaux inclus</InputLabel>
+                          <Select
+                            value={offerForm.materialsIncluded}
+                            onChange={(e) => setOfferForm(prev => ({ ...prev, materialsIncluded: e.target.value as any }))}
+                            label="Matériaux inclus"
+                          >
+                            <MenuItem value="client">Fournis par le client</MenuItem>
+                            <MenuItem value="worker">Fournis par moi</MenuItem>
+                            <MenuItem value="both">Partagés</MenuItem>
+                          </Select>
+                        </FormControl>
+                        <TextField
+                          label="Garantie proposée"
+                          value={offerForm.warranty}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, warranty: e.target.value }))}
+                          placeholder="Ex: 1 an, 6 mois..."
+                          fullWidth
+                        />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+
+                {/* Description et notes */}
+                <Grid size={{ xs: 12 }}>
+                  <Card variant="outlined">
+                    <CardContent>
+                      <Typography variant="subtitle1" sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FileText size={18} />
+                        Description et notes
+                      </Typography>
+                      <Stack spacing={2}>
+                        <TextField
+                          label="Description de votre offre"
+                          multiline
+                          rows={4}
+                          value={offerForm.description}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Décrivez vos services, votre expérience, les matériaux utilisés..."
+                          fullWidth
+                          required
+                        />
+                        <TextField
+                          label="Notes supplémentaires"
+                          multiline
+                          rows={3}
+                          value={offerForm.notes}
+                          onChange={(e) => setOfferForm(prev => ({ ...prev, notes: e.target.value }))}
+                          placeholder="Informations complémentaires, conditions spéciales..."
+                          fullWidth
+                        />
+                      </Stack>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              </Grid>
             </Box>
           </Stack>
         </DialogContent>
@@ -1512,7 +1726,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({
           <Button
             variant="contained"
             onClick={handleSubmitOffer}
-            disabled={!offerForm.price || !offerForm.description || !offerForm.timeline || !offerForm.availability}
+            disabled={!offerForm.price || parseFloat(offerForm.price) <= 0 || !offerForm.description.trim() || !offerForm.timeline.trim() || !offerForm.availability.trim()}
           >
             Envoyer l'offre
           </Button>

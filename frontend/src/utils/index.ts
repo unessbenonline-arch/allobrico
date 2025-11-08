@@ -309,7 +309,7 @@ export const logError = (error: unknown, context?: string): void => {
 };
 
 // Simple API helper
-const API_BASE = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:5001/api');
+const API_BASE = process.env.REACT_APP_API_URL || (process.env.NODE_ENV === 'production' ? '/api' : 'http://localhost:3001/api');
 console.log('API_BASE:', API_BASE);
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
@@ -325,6 +325,7 @@ const request = async <T>(
       headers: {
         'Content-Type': 'application/json',
       },
+      credentials: 'include',
       body: body ? JSON.stringify(body) : undefined,
     });
     if (!res.ok) {
@@ -350,7 +351,8 @@ export const api = {
 export const authService = {
   login: (email: string, password: string, role: string) =>
     api.post('/auth/login', { email, password, role }),
-  register: (userData: any) => api.post('/auth/register', userData),
+  register: (userData: { email: string; password: string; firstName: string; lastName: string; role: string; }) =>
+    api.post('/auth/register', userData),
   logout: () => api.post('/auth/logout'),
   getCurrentUser: () => api.get('/auth/me'),
   forgotPassword: (email: string) => api.post('/auth/forgot-password', { email }),
@@ -558,6 +560,15 @@ export const messageService = {
   getConversationMessages: (conversationId: string) => api.get(`/messages/conversations/${conversationId}/messages`),
   sendMessage: (conversationId: string, content: string) => api.post(`/messages/conversations/${conversationId}/messages`, { content }),
   createConversation: (participantId: string, initialMessage?: string) => api.post('/messages/conversations', { participantId, initialMessage }),
+};
+
+// Notifications service (real backend integration)
+// Shapes returned by backend: { id, type, title, message, payload, is_read, created_at }
+// We keep a lightweight transformer in the App component for UI formatting.
+export const notificationsService = {
+  getNotifications: (limit: number = 50) => api.get<{ notifications: any[] }>(`/notifications?limit=${limit}`),
+  markRead: (id: string | number) => api.patch<{ notification: any }>(`/notifications/${id}/read`),
+  markAllRead: () => api.patch<{ success: boolean }>(`/notifications/read-all`),
 };
 
 // Utility function to safely get location string from various formats

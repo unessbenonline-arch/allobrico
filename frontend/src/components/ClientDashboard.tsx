@@ -59,6 +59,7 @@ import {
 import { useTheme } from '@mui/material/styles';
 import { api, getCategoryIcon, getLocationCoordinates, getLocationString } from '../utils';
 import { useRequests, useCategories, useWorkers } from '../stores/appStore';
+import { useAppStore } from '../stores/appStore';
 import CreateDemandeDialog from './CreateDemandeDialog';
 
 interface ClientDashboardProps {
@@ -202,6 +203,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const { requests: clientRequests, isLoading: isLoadingRequests, fetchRequests, createRequest, updateRequest } = useRequests();
   const { categories, fetchCategories } = useCategories();
   const { workers, fetchWorkers } = useWorkers();
+  const { user } = useAppStore();
 
   // Handle map resize when expanded state changes
   React.useEffect(() => {
@@ -366,18 +368,12 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
   const handleViewOffers = async (request: any) => {
     try {
       setSelectedRequest(request);
-      
-      // Fetch offers from API
-      const response = await fetch(`/api/requests/${request.id}/offers`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch offers');
-      }
-      const data = await response.json();
+      const data = await api.get(`/requests/${request.id}/offers`) as any;
       setRequestOffers(data.offers || []);
-      setShowOffersModal(true);
     } catch (error) {
       console.error('Error loading offers:', error);
       setRequestOffers([]);
+    } finally {
       setShowOffersModal(true);
     }
   };
@@ -477,52 +473,56 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
         </Paper>
 
         <Paper sx={{ p: 2 }}>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: '1fr 300px 200px' },
-              gap: 2,
-            }}
-          >
+          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }}>
             <TextField
               value={searchLocation}
               onChange={(e) => setSearchLocation(e.target.value)}
               placeholder="Où se situe votre projet ? (ex: Paris 15ème, Versailles...)"
               fullWidth
+              size="small"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <MapPin size={18} />
                   </InputAdornment>
                 ),
+                sx: { height: 42 }
               }}
             />
-            <Box>
-              <FormControl fullWidth>
-                <InputLabel id="cat-label">Catégorie</InputLabel>
-                <Select
-                  labelId="cat-label"
-                  value={selectedCategory}
-                  label="Catégorie"
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                >
-                  <MenuItem value="">Toutes catégories</MenuItem>
-                  {categories.map((cat) => (
-                    <MenuItem key={cat.id} value={cat.id}>
-                      {cat.icon} {cat.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Box>
+            <FormControl fullWidth size="small" sx={{ minWidth: { md: 240 } }}>
+              <InputLabel id="cat-label">Catégorie</InputLabel>
+              <Select
+                labelId="cat-label"
+                value={selectedCategory}
+                label="Catégorie"
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                MenuProps={{ PaperProps: { style: { maxHeight: 300 } } }}
+              >
+                <MenuItem value="">Toutes catégories</MenuItem>
+                {categories.map((cat) => (
+                  <MenuItem key={cat.id} value={cat.id}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <span>{cat.icon}</span>
+                      <Typography variant="body2">{cat.name}</Typography>
+                    </Box>
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
             <Button
-              fullWidth
               variant="contained"
+              size="small"
+              sx={{
+                height: 42,
+                px: 3,
+                flexShrink: 0,
+                alignSelf: { xs: 'stretch', md: 'center' }
+              }}
               startIcon={<Search size={16} />}
             >
               Rechercher
             </Button>
-          </Box>
+          </Stack>
         </Paper>
       </Box>
 
@@ -534,7 +534,7 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
           setShowRequestForm(false);
           fetchRequests(); // Refresh the requests list
         }}
-        clientId="ba907e42-31e2-4d48-a108-2f07fe51fd19" // Marie Dubois - has requests
+        clientId={user?.id || ''}
       />
 
       {/* Worker profile dialog */}
@@ -1623,9 +1623,8 @@ const ClientDashboard: React.FC<ClientDashboardProps> = ({
                         variant="outlined"
                         size="small"
                         onClick={() => handleViewOffers(request)}
-                        disabled={request.status !== 'open'}
                       >
-                        Voir offres ({request.offersCount})
+                        Voir offres
                       </Button>
                     </Stack>
                   </Stack>

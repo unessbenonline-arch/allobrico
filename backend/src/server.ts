@@ -1,4 +1,5 @@
 import express from 'express';
+import session from 'express-session';
 import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
@@ -24,6 +25,7 @@ import requestRoutes from './routes/requests';
 import workerRoutes from './routes/workers';
 import adminRoutes from './routes/admin';
 import messageRoutes from './routes/messages';
+import notificationRoutes from './routes/notifications';
 
 console.log('Routes imported successfully');
 
@@ -66,6 +68,20 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Session (for demo purposes, use MemoryStore; do NOT use in production)
+app.use(session({
+  name: 'sid',
+  secret: process.env.SESSION_SECRET || 'dev_session_secret_change_me',
+  resave: false,
+  saveUninitialized: false,
+  cookie: {
+    httpOnly: true,
+    secure: false, // set true if behind HTTPS
+    sameSite: 'lax',
+    maxAge: 1000 * 60 * 60 * 8 // 8 hours
+  }
+}));
+
 // Disable caching in development
 app.use((req, res, next) => {
   res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
@@ -86,6 +102,7 @@ app.use('/api/requests', requestRoutes);
 app.use('/api/workers', workerRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Test endpoint
 app.get('/api/test', (req, res) => {
